@@ -1,0 +1,6 @@
+numpy>=2.0
+scipy>=1.14
+astropy>=6.1
+poliastro>=0.17
+matplotlib>=3.9
+jax>=0.4; platform_system != "Windows"

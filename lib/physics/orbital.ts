@@ -1,0 +1,127 @@
+import {
+  AU_M,
+  G,
+  SOLAR_LUMINOSITY_W,
+  SPEED_OF_LIGHT_MPS,
+  celestialBodies
+} from "@/lib/constants/celestial-bodies";
+import { propulsionModels } from "@/lib/constants/propulsion";
+import type { CelestialBodyName, MissionConfig, PropulsionType, Vector3 } from "@/lib/types";
+
+export const zeroVector: Vector3 = { x: 0, y: 0, z: 0 };
+
+export function add(a: Vector3, b: Vector3): Vector3 {
+  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+}
+
+export function subtract(a: Vector3, b: Vector3): Vector3 {
+  return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+}
+
+export function scale(v: Vector3, scalar: number): Vector3 {
+  return { x: v.x * scalar, y: v.y * scalar, z: v.z * scalar };
+}
+
+export function magnitude(v: Vector3): number {
+  return Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+export function normalize(v: Vector3): Vector3 {
+  const length = magnitude(v);
+  return length === 0 ? zeroVector : scale(v, 1 / length);
+}
+
+export function distance(a: Vector3, b: Vector3): number {
+  return magnitude(subtract(a, b));
+}
+
+export function gravitationalAcceleration(position: Vector3, bodyName: CelestialBodyName): Vector3 {
+  const body = celestialBodies[bodyName];
+  const r = subtract(body.positionAtEpoch, position);
+  const rMag = Math.max(magnitude(r), body.radiusKm * 1_000);
+  return scale(normalize(r), (G * body.massKg) / (rMag * rMag));
+}
+
+export function nBodyAcceleration(position: Vector3, bodies: CelestialBodyName[]): Vector3 {
+  return bodies.reduce((acc, body) => add(acc, gravitationalAcceleration(position, body)), zeroVector);
+}
+
+export function escapeVelocity(bodyName: CelestialBodyName, altitudeKm = 0): number {
+  const body = celestialBodies[bodyName];
+  return Math.sqrt((2 * G * body.massKg) / ((body.radiusKm + altitudeKm) * 1_000));
+}
+
+export function hohmannTransferDeltaV(origin: CelestialBodyName, target: CelestialBodyName): number {
+  const sunMass = celestialBodies.Sun.massKg;
+  const r1 = Math.max(celestialBodies[origin].semiMajorAxisAu, 0.1) * AU_M;
+  const r2 = Math.max(celestialBodies[target].semiMajorAxisAu, 0.1) * AU_M;
+  const mu = G * sunMass;
+  const dv1 = Math.sqrt(mu / r1) * (Math.sqrt((2 * r2) / (r1 + r2)) - 1);
+  const dv2 = Math.sqrt(mu / r2) * (1 - Math.sqrt((2 * r1) / (r1 + r2)));
+  return Math.abs(dv1) + Math.abs(dv2);
+}
+
+export function rocketEquationDeltaV(
+  propulsionType: PropulsionType,
+  dryMassKg: number,
+  fuelMassKg: number,
+  specificImpulseOverrideS?: number
+): number {
+  const model = propulsionModels[propulsionType];
+  if (propulsionType === "Solar Sail") {
+    return 0;
+  }
+  const isp = specificImpulseOverrideS ?? model.specificImpulseS;
+  const wetMass = dryMassKg + fuelMassKg;
+  return 9.80665 * isp * Math.log(wetMass / Math.max(dryMassKg, 1));
+}
+
+export function solarRadiationPressureAcceleration(
+  distanceFromSunM: number,
+  sailAreaM2: number,
+  reflectivity: number,
+  spacecraftMassKg: number
+): number {
+  const pressure = SOLAR_LUMINOSITY_W / (4 * Math.PI * distanceFromSunM ** 2 * SPEED_OF_LIGHT_MPS);
+  return (pressure * sailAreaM2 * (1 + reflectivity)) / spacecraftMassKg;
+}
+
+export function gravityAssistVelocityGain(
+  planetName: CelestialBodyName,
+  closestApproachKm: number,
+  incomingVelocityMps: number
+) {
+  const planet = celestialBodies[planetName];
+  const periapsisM = Math.max(closestApproachKm, planet.radiusKm + 100) * 1_000;
+  const mu = G * planet.massKg;
+  const turningAngleRad = 2 * Math.asin(1 / (1 + (periapsisM * incomingVelocityMps ** 2) / mu));
+  const velocityGainMps = 2 * incomingVelocityMps * Math.sin(turningAngleRad / 2);
+  const energyIncreaseJkg = 0.5 * velocityGainMps ** 2;
+  return {
+    velocityGainMps,
+    turningAngleDeg: (turningAngleRad * 180) / Math.PI,
+    energyIncreaseJkg
+  };
+}
+
+export function orbitalEnergy(position: Vector3, velocity: Vector3, centralBody: CelestialBodyName = "Sun") {
+  const mu = G * celestialBodies[centralBody].massKg;
+  const r = Math.max(distance(position, celestialBodies[centralBody].positionAtEpoch), 1);
+  return 0.5 * magnitude(velocity) ** 2 - mu / r;
+}
+
+export function estimateMissionScore(mission: MissionConfig, travelTimeYears: number, fuelRemainingKg: number, deltaVMps: number) {
+  const weights = mission.objectiveWeights;
+  const normalizedTime = Math.max(0, 1 - travelTimeYears / mission.maxMissionDurationYears);
+  const normalizedFuel = Math.max(0, fuelRemainingKg / mission.fuelMassKg);
+  const normalizedSafety = Math.max(0, 1 - mission.gravityAssists.length * 0.035);
+  const normalizedDeltaV = Math.max(0, 1 - deltaVMps / Math.max(rocketEquationDeltaV(mission.propulsionType, mission.payloadMassKg, mission.fuelMassKg), 1));
+  const totalWeight = weights.travelTime + weights.fuel + weights.safety + weights.deltaV;
+  return (
+    (weights.travelTime * normalizedTime +
+      weights.fuel * normalizedFuel +
+      weights.safety * normalizedSafety +
+      weights.deltaV * normalizedDeltaV) /
+    totalWeight
+  ) * 100;
+}
