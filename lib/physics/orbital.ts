@@ -92,7 +92,7 @@ export function gravityAssistVelocityGain(
   incomingVelocityMps: number
 ) {
   const planet = celestialBodies[planetName];
-  const periapsisM = Math.max(closestApproachKm, planet.radiusKm + 100) * 1_000;
+  const periapsisM = (planet.radiusKm + Math.max(closestApproachKm, 100)) * 1_000;
   const mu = G * planet.massKg;
   const turningAngleRad = 2 * Math.asin(1 / (1 + (periapsisM * incomingVelocityMps ** 2) / mu));
   const velocityGainMps = 2 * incomingVelocityMps * Math.sin(turningAngleRad / 2);

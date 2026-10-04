@@ -13,6 +13,7 @@ export type Database = {
         };
         Insert: Partial<Database["public"]["Tables"]["users"]["Row"]> & { id: string };
         Update: Partial<Database["public"]["Tables"]["users"]["Row"]>;
+        Relationships: [];
       };
       missions: {
         Row: {
@@ -33,6 +34,7 @@ export type Database = {
         };
         Insert: Partial<Database["public"]["Tables"]["missions"]["Row"]> & { user_id: string; mission_name: string };
         Update: Partial<Database["public"]["Tables"]["missions"]["Row"]>;
+        Relationships: [];
       };
       trajectory_results: {
         Row: {
@@ -49,22 +51,28 @@ export type Database = {
         };
         Insert: Partial<Database["public"]["Tables"]["trajectory_results"]["Row"]> & { mission_id: string };
         Update: Partial<Database["public"]["Tables"]["trajectory_results"]["Row"]>;
+        Relationships: [];
       };
       simulation_steps: {
         Row: Record<string, unknown>;
         Insert: Record<string, unknown>;
         Update: Record<string, unknown>;
+        Relationships: [];
       };
       gravity_assists: {
         Row: Record<string, unknown>;
         Insert: Record<string, unknown>;
         Update: Record<string, unknown>;
+        Relationships: [];
       };
       optimization_runs: {
         Row: Record<string, unknown>;
         Insert: Record<string, unknown>;
         Update: Record<string, unknown>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 };

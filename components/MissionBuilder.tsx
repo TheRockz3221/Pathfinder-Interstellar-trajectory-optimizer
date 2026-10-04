@@ -22,12 +22,12 @@ export function MissionBuilder() {
   };
 
   return (
-    <section className="glass rounded-lg p-4">
+    <section className="panel min-w-0 p-4">
       <div className="mb-4">
         <h2 className="text-base font-semibold text-white">Mission Builder</h2>
-        <p className="text-sm text-slate-300">Configure spacecraft, trajectory, propulsion, and objective weighting.</p>
+        <p className="text-sm leading-6 text-slate-300">Configure spacecraft, trajectory, propulsion, and objective weighting.</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
         <Field label="Mission name">
           <input value={mission.missionName} onChange={(event) => updateMission({ missionName: event.target.value })} className="field" />
         </Field>
@@ -66,7 +66,7 @@ export function MissionBuilder() {
         </Field>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-4">
+      <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Object.entries(mission.objectiveWeights).map(([key, value]) => (
           <Field key={key} label={key.replace(/([A-Z])/g, " $1")}>
             <input
@@ -83,7 +83,7 @@ export function MissionBuilder() {
       </div>
 
       <div className="mt-5">
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-white">Gravity Assist Sequence</h3>
           <button
             onClick={() =>
@@ -102,7 +102,7 @@ export function MissionBuilder() {
         </div>
         <div className="space-y-2">
           {mission.gravityAssists.map((assist, index) => (
-            <div key={`${assist.flybyOrder}-${index}`} className="grid grid-cols-[1fr_120px_38px] gap-2">
+            <div key={`${assist.flybyOrder}-${index}`} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,120px)_38px] gap-2">
               <select
                 value={assist.planetName}
                 onChange={(event) => {
@@ -141,7 +141,7 @@ export function MissionBuilder() {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="space-y-1 text-sm">
+    <label className="min-w-0 space-y-1 text-sm">
       <span className="block text-xs uppercase tracking-[0.12em] text-slate-400">{label}</span>
       {children}
     </label>

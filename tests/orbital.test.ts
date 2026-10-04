@@ -25,4 +25,9 @@ describe("orbital mechanics helpers", () => {
     expect(assist.velocityGainMps).toBeGreaterThan(0);
     expect(assist.turningAngleDeg).toBeGreaterThan(0);
   });
+
+  it("keeps Jupiter's velocity change below 5 km/s at 400 km/s and 62,000 km altitude", () => {
+    const assist = gravityAssistVelocityGain("Jupiter", 62_000, 400_000);
+    expect(assist.velocityGainMps / 1_000).toBeLessThan(5);
+  });
 });

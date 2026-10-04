@@ -6,7 +6,6 @@ import {
   add,
   distance,
   estimateMissionScore,
-  gravityAssistVelocityGain,
   magnitude,
   nBodyAcceleration,
   normalize,
@@ -27,11 +26,6 @@ export function runTrajectorySimulation(mission: MissionConfig, requestedSteps =
   const dt = durationSeconds / maxSteps;
   const dryMassKg = mission.payloadMassKg;
   const initialDirection = normalize(subtract(destination.positionAtEpoch, origin.positionAtEpoch));
-  const assistGain = mission.gravityAssists.reduce((gain, assist, index) => {
-    const baseVelocity = mission.initialVelocityMps + gain;
-    const result = gravityAssistVelocityGain(assist.planetName, assist.closestApproachKm, baseVelocity);
-    return gain + result.velocityGainMps * (0.62 - index * 0.04);
-  }, 0);
   let fuelRemainingKg = mission.fuelMassKg;
   let deltaVMps = 0;
   let traveledM = 0;
@@ -40,7 +34,7 @@ export function runTrajectorySimulation(mission: MissionConfig, requestedSteps =
 
   let state: State = {
     position: origin.positionAtEpoch,
-    velocity: scale(initialDirection, mission.initialVelocityMps + assistGain)
+    velocity: scale(initialDirection, mission.initialVelocityMps)
   };
 
   const availableDeltaV = rocketEquationDeltaV(

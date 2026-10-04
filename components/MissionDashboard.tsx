@@ -18,39 +18,39 @@ export function MissionDashboard({ mission, result }: Props) {
   ];
 
   return (
-    <section className="glass rounded-lg p-4">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
+    <section className="panel min-w-0 p-4">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-base font-semibold text-white">Mission Summary</h2>
-          <p className="text-sm text-slate-300">{mission.launchBody} to {mission.destination}</p>
+          <p className="break-words text-sm text-slate-300">{mission.launchBody} to {mission.destination}</p>
         </div>
-        <div className="rounded-md border border-gold-mission/30 bg-gold-mission/10 px-3 py-2 text-right">
+        <div className="shrink-0 rounded-md border border-gold-mission/30 bg-gold-mission/10 px-3 py-2 text-right">
           <p className="text-xs uppercase text-gold-mission">Score</p>
           <p className="text-2xl font-semibold text-white">{formatNumber(result.optimizationScore, 1)}</p>
         </div>
       </div>
-      <div className="metric-grid gap-3">
+      <div className="metric-grid min-w-0 gap-3">
         {metrics.map((metric) => {
           const Icon = metric.icon;
           return (
-            <div key={metric.label} className="rounded-md border border-white/10 bg-white/[0.045] p-3">
+            <div key={metric.label} className="min-w-0 rounded-md border border-white/10 bg-white/[0.045] p-3">
               <div className="mb-2 flex items-center gap-2 text-cyan-soft">
-                <Icon size={16} />
+                <Icon size={16} className="shrink-0" />
                 <span className="text-xs uppercase tracking-[0.12em]">{metric.label}</span>
               </div>
-              <p className="text-xl font-semibold text-white">{metric.value}</p>
+              <p className="break-words text-lg font-semibold text-white sm:text-xl">{metric.value}</p>
             </div>
           );
         })}
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-md border border-white/10 bg-white/[0.035] p-3">
+        <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.035] p-3">
           <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Fuel remaining</p>
-          <p className="text-lg font-semibold text-emerald">{formatNumber(result.fuelRemainingKg, 0)} kg</p>
+          <p className="break-words text-lg font-semibold text-emerald">{formatNumber(result.fuelRemainingKg, 0)} kg</p>
         </div>
-        <div className="rounded-md border border-white/10 bg-white/[0.035] p-3">
+        <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.035] p-3">
           <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Gravity assists</p>
-          <p className="text-lg font-semibold text-white">
+          <p className="break-words text-lg font-semibold text-white">
             {mission.gravityAssists.map((assist) => assist.planetName).join(" -> ") || "Direct"}
           </p>
         </div>

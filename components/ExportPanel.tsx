@@ -21,7 +21,7 @@ export function ExportPanel({ mission, result }: { mission: MissionConfig; resul
   };
 
   return (
-    <section className="glass rounded-lg p-4">
+    <section className="panel p-4">
       <div className="mb-3 flex items-center gap-2">
         <Download size={17} className="text-cyan-signal" />
         <h2 className="text-base font-semibold text-white">Mission Exports</h2>
