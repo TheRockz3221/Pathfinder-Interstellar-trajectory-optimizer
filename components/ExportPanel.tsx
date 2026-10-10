@@ -35,7 +35,7 @@ export function ExportPanel({ mission, result }: { mission: MissionConfig; resul
           JSON report
         </button>
         <button
-          onClick={() => downloadTextFile(`${slug}-simulation.csv`, exportSimulationCsv(result), "text/csv")}
+          onClick={() => downloadTextFile(`${slug}-simulation.csv`, exportSimulationCsv(mission, result), "text/csv;charset=utf-8")}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-gold-mission/25 bg-gold-mission/10 px-3 text-sm text-gold-mission transition hover:bg-gold-mission/15"
         >
           <Table size={16} />

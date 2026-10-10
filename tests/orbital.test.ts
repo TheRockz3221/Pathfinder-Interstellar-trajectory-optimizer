@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { escapeVelocity, gravityAssistVelocityGain, rocketEquationDeltaV, solarRadiationPressureAcceleration } from "@/lib/physics/orbital";
+import {
+  escapeVelocity,
+  gravityAssistVelocityGain,
+  orbitalEnergy,
+  rocketEquationDeltaV,
+  solarRadiationPressureAcceleration
+} from "@/lib/physics/orbital";
 import { AU_M } from "@/lib/constants/celestial-bodies";
+import { runTrajectorySimulation } from "@/lib/physics/simulation";
+import { defaultMission } from "@/lib/state/mission-store";
 
 describe("orbital mechanics helpers", () => {
   it("computes Earth escape velocity near the known surface value", () => {
@@ -29,5 +37,22 @@ describe("orbital mechanics helpers", () => {
   it("keeps Jupiter's velocity change below 5 km/s at 400 km/s and 62,000 km altitude", () => {
     const assist = gravityAssistVelocityGain("Jupiter", 62_000, 400_000);
     expect(assist.velocityGainMps / 1_000).toBeLessThan(5);
+  });
+
+  it("conserves two-body coast energy over a long Sun-only no-thrust run", () => {
+    const mission = {
+      ...defaultMission,
+      destination: "Alpha Centauri" as const,
+      gravityAssists: [],
+      maxMissionDurationYears: 25,
+      initialVelocityMps: 42_000,
+      integrator: "RK4" as const
+    };
+    const result = runTrajectorySimulation(mission, 240, { gravityBodies: ["Sun"], thrustEnabled: false });
+    const initialEnergy = orbitalEnergy(result.simulationData[0].position, result.simulationData[0].velocity, "Sun");
+    const finalStep = result.simulationData.at(-1)!;
+    const finalEnergy = orbitalEnergy(finalStep.position, finalStep.velocity, "Sun");
+
+    expect(Math.abs((finalEnergy - initialEnergy) / initialEnergy)).toBeLessThan(0.0001);
   });
 });
