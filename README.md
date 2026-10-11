@@ -10,7 +10,7 @@ A production-shaped Next.js platform for designing, simulating, visualizing, opt
 - Interactive dashboard with mission summary, velocity/distance/fuel/delta-v charts, optimization progress, AI recommendations, comparison metrics, educational equations, and report exports.
 - 3D React Three Fiber solar-system scene with orbit trails, labeled bodies, trajectory path, time acceleration, pause, and replay controls.
 - Supabase-ready schema with normalized tables, storage buckets, auth profile sync, and RLS policies for user-owned mission data.
-- Focused Vitest coverage for orbital mechanics calculations.
+- Vitest coverage for orbital mechanics, launch velocity, gravity assists, optimization, and trajectory baselines.
 - Optional Python science kernel in `science/` for notebook validation and future cloud simulation workers without adding a custom REST API.
 
 ## Quick Start
@@ -38,14 +38,13 @@ npm test
 npm run build
 ```
 
-The current execution environment did not have `npm` available, so dependencies were declared but not installed here.
 
 ## Architecture
 
 - `app/` contains the Next.js App Router entry, global styling, and React Query provider.
 - `components/` contains the mission console, builder, charts, 3D scene, auth, exports, and shadcn-style UI primitives.
 - `lib/physics/` contains integrators and astrodynamics calculations.
-- `lib/optimization/` and `lib/ai/` contain optimization previews and explainable recommendation logic.
+- `lib/optimization/` and `lib/ai/` contain seeded Differential Evolution and explainable recommendation logic.
 - `lib/supabase/` contains the direct Supabase client and mission persistence functions.
 - `supabase/schema.sql` contains tables, triggers, storage buckets, and RLS policies.
 - `science/` contains optional Python validation utilities.
