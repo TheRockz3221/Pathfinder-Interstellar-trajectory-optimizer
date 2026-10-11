@@ -89,10 +89,13 @@ export function runTrajectorySimulation(
   const accelerationFn = (position: Vector3, velocity: Vector3, elapsedSeconds: number) => {
     const gravity = nBodyAcceleration(position, [...gravityBodies], elapsedSeconds, mission.launchDate);
     const targetDirection = normalize(subtract(guidanceTarget(position, magnitude(velocity), elapsedSeconds), position));
+    const propulsiveBurnActive =
+      thrustEnabled &&
+      mission.propulsionType !== "Solar Sail" &&
+      fuelRemainingKg > 0 &&
+      deltaVMps < availableDeltaV;
     let thrustMagnitude =
-      thrustEnabled && mission.propulsionType !== "Solar Sail" && fuelRemainingKg > 0 && deltaVMps < availableDeltaV
-        ? propulsiveDeltaVRate(elapsedSeconds)
-        : 0;
+      propulsiveBurnActive ? propulsiveDeltaVRate(elapsedSeconds) : 0;
 
     if (thrustEnabled && mission.propulsionType === "Solar Sail") {
       const distanceFromSunM = Math.max(distance(position, celestialBodies.Sun.positionAtEpoch), 0.05 * AU_M);
@@ -104,7 +107,8 @@ export function runTrajectorySimulation(
       );
     }
 
-    const thrust = scale(targetDirection, thrustMagnitude);
+    const thrustDirection = propulsiveBurnActive ? normalize(velocity) : targetDirection;
+    const thrust = scale(thrustDirection, thrustMagnitude);
     return add(gravity, thrust);
   };
 

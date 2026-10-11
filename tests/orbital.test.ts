@@ -117,6 +117,118 @@ describe("orbital mechanics helpers", () => {
     );
   });
 
+  it("keeps prograde Fusion peak speed and final v-infinity within 2% of the ideal", () => {
+    const mission = {
+      ...defaultMission,
+      launchDate: "2048-07-16",
+      gravityAssists: [{ planetName: "Jupiter" as const, flybyOrder: 1, closestApproachKm: 540_000 }],
+      applyGravityAssists: false,
+      maxMissionDurationYears: 90,
+      initialVelocityMps: 42_000,
+      propulsionType: "Fusion Rocket" as const,
+      maxAccelerationMps2: 0.18
+    };
+    const deltaVMps = rocketEquationDeltaV(
+      mission.propulsionType,
+      mission.payloadMassKg,
+      mission.fuelMassKg,
+      mission.propulsionSettings.specificImpulseS
+    );
+    const result = runTrajectorySimulation(mission, 950);
+    const finalStep = result.simulationData.at(-1)!;
+    const finalEnergy = orbitalEnergy(finalStep.position, finalStep.velocity);
+    const finalVInfinityKps = Math.sqrt(2 * finalEnergy) / 1_000;
+    const expectedVInfinityKps =
+      Math.sqrt((mission.initialVelocityMps / 1_000 + deltaVMps / 1_000) ** 2 - 42.1 ** 2);
+
+    expect(result.maxVelocityKps * 1_000).toBeLessThanOrEqual(
+      (mission.initialVelocityMps + deltaVMps) * 1.01
+    );
+    expect(Math.abs(finalVInfinityKps / expectedVInfinityKps - 1)).toBeLessThan(0.02);
+  });
+
+  it("keeps Chemical final v-infinity within 2% of the ideal prograde result", () => {
+    const mission = {
+      ...defaultMission,
+      launchDate: "2048-07-16",
+      gravityAssists: [{ planetName: "Jupiter" as const, flybyOrder: 1, closestApproachKm: 540_000 }],
+      applyGravityAssists: false,
+      maxMissionDurationYears: 90,
+      initialVelocityMps: 42_000,
+      propulsionType: "Chemical Rocket" as const,
+      maxAccelerationMps2: 0.18
+    };
+    const deltaVMps = rocketEquationDeltaV(
+      mission.propulsionType,
+      mission.payloadMassKg,
+      mission.fuelMassKg,
+      mission.propulsionSettings.specificImpulseS
+    );
+    const result = runTrajectorySimulation(mission, 950);
+    const finalStep = result.simulationData.at(-1)!;
+    const finalEnergy = orbitalEnergy(finalStep.position, finalStep.velocity);
+    const finalVInfinityKps = Math.sqrt(2 * finalEnergy) / 1_000;
+    const expectedVInfinityKps =
+      Math.sqrt((mission.initialVelocityMps / 1_000 + deltaVMps / 1_000) ** 2 - 42.1 ** 2);
+
+    expect(Math.abs(finalVInfinityKps / expectedVInfinityKps - 1)).toBeLessThan(0.02);
+  });
+
+  it("conserves prograde Fusion Sun-specific energy to 0.1% from burn end through year 90", () => {
+    const mission = {
+      ...defaultMission,
+      launchDate: "2048-07-16",
+      gravityAssists: [{ planetName: "Jupiter" as const, flybyOrder: 1, closestApproachKm: 540_000 }],
+      applyGravityAssists: false,
+      maxMissionDurationYears: 90,
+      initialVelocityMps: 42_000,
+      propulsionType: "Fusion Rocket" as const,
+      maxAccelerationMps2: 0.18
+    };
+    const deltaVMps = rocketEquationDeltaV(
+      mission.propulsionType,
+      mission.payloadMassKg,
+      mission.fuelMassKg,
+      mission.propulsionSettings.specificImpulseS
+    );
+    const result = runTrajectorySimulation(mission, 950);
+    const burnEnd = result.simulationData.find(
+      (step) => step.deltaVMps >= deltaVMps * (1 - 1e-9)
+    )!;
+    const energyAt = (step: (typeof result.simulationData)[number]) =>
+      orbitalEnergy(step.position, step.velocity);
+    const interpolateAtYear = (year: number) => {
+      const elapsedSeconds = year * YEAR_S;
+      const upperIndex = result.simulationData.findIndex((step) => step.elapsedSeconds >= elapsedSeconds);
+      const start = result.simulationData[upperIndex - 1];
+      const end = result.simulationData[upperIndex];
+      const fraction = (elapsedSeconds - start.elapsedSeconds) / (end.elapsedSeconds - start.elapsedSeconds);
+      const position = {
+        x: start.position.x + (end.position.x - start.position.x) * fraction,
+        y: start.position.y + (end.position.y - start.position.y) * fraction,
+        z: start.position.z + (end.position.z - start.position.z) * fraction
+      };
+      const velocity = {
+        x: start.velocity.x + (end.velocity.x - start.velocity.x) * fraction,
+        y: start.velocity.y + (end.velocity.y - start.velocity.y) * fraction,
+        z: start.velocity.z + (end.velocity.z - start.velocity.z) * fraction
+      };
+      return orbitalEnergy(position, velocity);
+    };
+    const energies = [
+      { label: "burn end", energyJkg: energyAt(burnEnd) },
+      { label: "year 1", energyJkg: interpolateAtYear(1) },
+      { label: "year 10", energyJkg: interpolateAtYear(10) },
+      { label: "year 90", energyJkg: interpolateAtYear(90) }
+    ];
+
+    console.log("Prograde Fusion Sun-specific energy", energies);
+    expect(burnEnd).toBeDefined();
+    for (const { energyJkg } of energies.slice(1)) {
+      expect(Math.abs((energyJkg - energies[0].energyJkg) / energies[0].energyJkg)).toBeLessThan(0.001);
+    }
+  });
+
   it("keeps post-burn Sun-specific energy within 5% of the ideal post-burn energy", () => {
     const mission = {
       ...defaultMission,
