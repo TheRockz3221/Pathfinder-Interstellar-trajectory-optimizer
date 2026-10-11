@@ -158,7 +158,7 @@ export function orbitalEnergy(position: Vector3, velocity: Vector3, centralBody:
 }
 
 function daysSinceReferenceEpoch(launchDate: string) {
-  const parsed = Date.parse(`${launchDate}T00:00:00Z`);
+  const parsed = Date.parse(launchDate.includes("T") ? launchDate : `${launchDate}T00:00:00Z`);
   if (Number.isNaN(parsed)) {
     return 0;
   }

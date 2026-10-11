@@ -158,12 +158,19 @@ function assistReport(mission: MissionConfig, result: TrajectoryResult) {
         deltaVGainedKps: event.velocityGainMps / 1_000
       };
     }
+    const bodyRadiusKm = celestialBodies[assist.planetName].radiusKm;
+    const closestDistanceKm = closest.distanceM / 1_000;
     return {
       body: assist.planetName,
-      encounter: "No encounter",
+      encounter:
+        closestDistanceKm < bodyRadiusKm
+          ? "Impact/invalid flyby"
+          : !mission.applyGravityAssists
+            ? "Assist disabled"
+            : "No encounter",
       encounterTimeYears: null,
       closestApproachTimeYears: closestApproachTimeYears(closest),
-      closestApproachDistanceKm: closest.distanceM / 1_000,
+      closestApproachDistanceKm: closestDistanceKm,
       relativeVInfinityKps: closest.relativeSpeedMps / 1_000,
       heliocentricSpeedBeforeKps: null,
       heliocentricSpeedAfterKps: null,
@@ -190,6 +197,10 @@ describe("requested 90-year mission baselines", () => {
       launchDate: scan.launchDate,
       offsetDays: scan.dateOffsetDays,
       candidatesScanned: scan.candidatesScanned,
+      dailyCandidatesScanned: scan.dailyCandidatesScanned,
+      hourlyCandidatesScanned: scan.hourlyCandidatesScanned,
+      minuteCandidatesScanned: scan.minuteCandidatesScanned,
+      secondCandidatesScanned: scan.secondCandidatesScanned,
       synodicPeriodDays,
       scanHorizonYears: scan.scanHorizonYears,
       closestApproachTimeYears: closestApproachTimeYears(scan),
@@ -201,6 +212,13 @@ describe("requested 90-year mission baselines", () => {
       scanReport("Chemical Rocket", chemicalLaunchWindow),
       scanReport("Fusion Rocket", fusionLaunchWindow)
     ]);
+    expect(Math.abs(chemicalLaunchWindow.distanceM / 1_000 - (celestialBodies.Jupiter.radiusKm + assistPlan[0].closestApproachKm))).toBeLessThan(1_000);
+    if (fusionLaunchWindow.distanceM / 1_000 > noEncounterThresholdKm) {
+      console.log("Fusion two-year launch scan misses the Jupiter assist threshold", {
+        distanceKm: fusionLaunchWindow.distanceM / 1_000,
+        thresholdKm: noEncounterThresholdKm
+      });
+    }
 
     const diagnosticMission = createMission("Chemical Rocket", false, "2049-03-12");
     const diagnosticResult = runTrajectorySimulation(diagnosticMission, 950);
@@ -249,11 +267,21 @@ describe("requested 90-year mission baselines", () => {
       expect(result.travelTimeYears).toBeCloseTo(90, 5);
       expect(result.fuelRemainingKg).toBeGreaterThanOrEqual(0);
       expect(result.fuelRemainingKg).toBeLessThanOrEqual(mission.fuelMassKg);
-      expect(result.gravityAssistEvents).toHaveLength(0);
     }
-    expect(chemicalLaunchWindow.distanceM / 1_000).toBeGreaterThan(noEncounterThresholdKm);
-    expect(fusionLaunchWindow.candidatesScanned).toBe(399);
-    expect(chemicalLaunchWindow.candidatesScanned).toBe(399);
+    expect(chemicalLaunchWindow.distanceM / 1_000).toBeLessThan(noEncounterThresholdKm);
+    expect(fusionLaunchWindow.dailyCandidatesScanned).toBe(399);
+    expect(chemicalLaunchWindow.dailyCandidatesScanned).toBe(399);
+    for (const scan of [fusionLaunchWindow, chemicalLaunchWindow]) {
+      expect(scan.hourlyCandidatesScanned).toBeGreaterThan(0);
+      expect(scan.minuteCandidatesScanned).toBeGreaterThan(0);
+      expect(scan.secondCandidatesScanned).toBeGreaterThan(0);
+      expect(scan.candidatesScanned).toBe(
+        scan.dailyCandidatesScanned +
+          scan.hourlyCandidatesScanned +
+          scan.minuteCandidatesScanned +
+          scan.secondCandidatesScanned
+      );
+    }
     expect(yearlyEnergy).toHaveLength(91);
     expect(closeApproaches.every((encounter) => encounter.distanceKm <= closeApproachLimitM / 1_000)).toBe(true);
     for (const result of solarCoastResults) {
@@ -262,15 +290,15 @@ describe("requested 90-year mission baselines", () => {
     expect(results[0].mission.launchDate).toBe(results[1].mission.launchDate);
     expect(results[0].mission.launchDate).toBe(chemicalLaunchWindow.launchDate);
     expect(results[0].mission.initialVelocityMps).toBe(results[1].mission.initialVelocityMps);
-    if (results[1].result.gravityAssistEvents.length === 0) {
-      expect(results[0].result.simulationData).toEqual(results[1].result.simulationData);
-    }
+    expect(results[0].result.simulationData[0].position).toEqual(results[1].result.simulationData[0].position);
+    expect(results[0].result.simulationData[0].velocity).toEqual(results[1].result.simulationData[0].velocity);
+    expect(results[0].result.simulationData).not.toEqual(results[1].result.simulationData);
     expect(results[2].mission.launchDate).toBe(results[3].mission.launchDate);
     expect(results[2].mission.launchDate).toBe(fusionLaunchWindow.launchDate);
     expect(results[2].mission.initialVelocityMps).toBe(results[3].mission.initialVelocityMps);
     expect(results[2].result.optimizationScore).toBeGreaterThan(results[0].result.optimizationScore);
-    if (results[3].result.gravityAssistEvents.length === 0) {
-      expect(results[2].result.simulationData).toEqual(results[3].result.simulationData);
-    }
+    expect(results[2].result.simulationData[0].position).toEqual(results[3].result.simulationData[0].position);
+    expect(results[2].result.simulationData[0].velocity).toEqual(results[3].result.simulationData[0].velocity);
+    expect(results[2].result.simulationData).not.toEqual(results[3].result.simulationData);
   });
 });

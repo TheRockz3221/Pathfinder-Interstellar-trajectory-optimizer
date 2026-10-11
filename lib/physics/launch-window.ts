@@ -14,8 +14,15 @@ export type LaunchWindowScanResult = ClosestApproach & {
   dateOffsetDays: number;
   synodicPeriodDays: number;
   candidatesScanned: number;
+  dailyCandidatesScanned: number;
+  hourlyCandidatesScanned: number;
+  minuteCandidatesScanned: number;
+  secondCandidatesScanned: number;
   scanHorizonYears: number;
 };
+
+const HOUR_MS = 60 * 60 * 1_000;
+const MINUTE_MS = 60 * 1_000;
 
 export function closestApproachToBody(
   result: TrajectoryResult,
@@ -68,7 +75,9 @@ export function closestApproachToBody(
 }
 
 export function scanJupiterLaunchWindow(mission: MissionConfig, requestedSteps = 950): LaunchWindowScanResult {
-  const launchTimestamp = Date.parse(`${mission.launchDate}T00:00:00Z`);
+  const launchTimestamp = Date.parse(
+    mission.launchDate.includes("T") ? mission.launchDate : `${mission.launchDate}T00:00:00Z`
+  );
   if (Number.isNaN(launchTimestamp)) {
     throw new RangeError(`Invalid launch date: ${mission.launchDate}`);
   }
@@ -76,12 +85,21 @@ export function scanJupiterLaunchWindow(mission: MissionConfig, requestedSteps =
   const earthPeriod = celestialBodies.Earth.orbitalPeriodDays;
   const jupiterPeriod = celestialBodies.Jupiter.orbitalPeriodDays;
   const synodicPeriodDays = 1 / Math.abs(1 / earthPeriod - 1 / jupiterPeriod);
-  const candidatesScanned = Math.ceil(synodicPeriodDays);
+  const dailyCandidatesScanned = Math.ceil(synodicPeriodDays);
   const scanHorizonYears = mission.maxMissionDurationYears;
+  const scanEndTimestamp = launchTimestamp + synodicPeriodDays * DAY_S * 1_000;
+  const scannedTimestamps = new Set<number>();
+  const refinementCounts = { hourly: 0, minute: 0, second: 0 };
+  const assistTarget = mission.gravityAssists.find((assist) => assist.planetName === "Jupiter");
+  const targetPeriapsisM =
+    (celestialBodies.Jupiter.radiusKm + Math.max(assistTarget?.closestApproachKm ?? 100, 100)) * 1_000;
   let best: LaunchWindowScanResult | undefined;
 
-  for (let dateOffsetDays = 0; dateOffsetDays < candidatesScanned; dateOffsetDays++) {
-    const launchDate = new Date(launchTimestamp + dateOffsetDays * DAY_S * 1_000).toISOString().slice(0, 10);
+  const evaluateTimestamp = (timestamp: number, stage: "daily" | "hourly" | "minute" | "second") => {
+    if (timestamp < launchTimestamp || timestamp >= scanEndTimestamp || scannedTimestamps.has(timestamp)) return;
+    scannedTimestamps.add(timestamp);
+    if (stage !== "daily") refinementCounts[stage] += 1;
+    const launchDate = new Date(timestamp).toISOString().replace(/\.\d{3}Z$/, "Z");
     const assistOffMission = {
       ...mission,
       launchDate,
@@ -90,21 +108,47 @@ export function scanJupiterLaunchWindow(mission: MissionConfig, requestedSteps =
     };
     const trajectory = runTrajectorySimulation(assistOffMission, Math.min(requestedSteps, 120));
     const approach = closestApproachToBody(trajectory, "Jupiter", launchDate);
-    if (!best || approach.distanceM < best.distanceM) {
+    if (!best || Math.abs(approach.distanceM - targetPeriapsisM) < Math.abs(best.distanceM - targetPeriapsisM)) {
       best = {
         ...approach,
         launchDate,
-        dateOffsetDays,
+        dateOffsetDays: (timestamp - launchTimestamp) / (DAY_S * 1_000),
         synodicPeriodDays,
-        candidatesScanned,
+        candidatesScanned: scannedTimestamps.size,
+        dailyCandidatesScanned,
+        hourlyCandidatesScanned: refinementCounts.hourly,
+        minuteCandidatesScanned: refinementCounts.minute,
+        secondCandidatesScanned: refinementCounts.second,
         scanHorizonYears
       };
     }
+  };
+
+  for (let dateOffsetDays = 0; dateOffsetDays < dailyCandidatesScanned; dateOffsetDays++) {
+    evaluateTimestamp(launchTimestamp + dateOffsetDays * DAY_S * 1_000, "daily");
   }
+
+  if (!best) {
+    throw new Error("Jupiter launch-window scan did not evaluate any daily dates.");
+  }
+
+  const refine = (stepMs: number, radiusSteps: number, stage: "hourly" | "minute" | "second") => {
+    const centerTimestamp = Date.parse(best!.launchDate);
+    for (let offset = -radiusSteps; offset <= radiusSteps; offset++) {
+      evaluateTimestamp(centerTimestamp + offset * stepMs, stage);
+    }
+  };
+  refine(HOUR_MS, 24, "hourly");
+  refine(MINUTE_MS, 60, "minute");
+  refine(1_000, 60, "second");
 
   if (!best) {
     throw new Error("Jupiter launch-window scan did not evaluate any dates.");
   }
+  best.candidatesScanned = scannedTimestamps.size;
+  best.hourlyCandidatesScanned = refinementCounts.hourly;
+  best.minuteCandidatesScanned = refinementCounts.minute;
+  best.secondCandidatesScanned = refinementCounts.second;
   return best;
 }
 
