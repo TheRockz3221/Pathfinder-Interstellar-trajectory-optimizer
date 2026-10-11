@@ -1,15 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { AU_M, YEAR_S } from "@/lib/constants/celestial-bodies";
-import { bodyPositionAtTime, bodyVelocityAtTime, distance, magnitude, orbitalEnergy, subtract } from "@/lib/physics/orbital";
+import { YEAR_S, celestialBodies } from "@/lib/constants/celestial-bodies";
+import { orbitalEnergy } from "@/lib/physics/orbital";
+import { closestApproachToBody, closestApproachTimeYears, scanJupiterLaunchWindow } from "@/lib/physics/launch-window";
 import { runTrajectorySimulation } from "@/lib/physics/simulation";
 import { defaultMission } from "@/lib/state/mission-store";
 import type { MissionConfig, TrajectoryResult } from "@/lib/types";
 
 const assistPlan = [{ planetName: "Jupiter", flybyOrder: 1, closestApproachKm: 540_000 }] as const;
 
-function createMission(propulsionType: MissionConfig["propulsionType"], applyGravityAssists: boolean): MissionConfig {
+function createMission(
+  propulsionType: MissionConfig["propulsionType"],
+  applyGravityAssists: boolean,
+  launchDate = defaultMission.launchDate
+): MissionConfig {
   return {
     ...defaultMission,
+    launchDate,
     propulsionType,
     payloadMassKg: 1_200,
     fuelMassKg: 8_500,
@@ -44,10 +50,12 @@ function energyCoastDrift(result: TrajectoryResult) {
 function assistReport(mission: MissionConfig, result: TrajectoryResult) {
   return mission.gravityAssists.map((assist) => {
     const event = result.gravityAssistEvents.find((candidate) => candidate.planetName === assist.planetName);
+    const closest = closestApproachToBody(result, assist.planetName, mission.launchDate);
     if (event) {
       return {
         body: event.planetName,
         encounterTimeYears: event.elapsedSeconds / YEAR_S,
+        closestApproachTimeYears: closestApproachTimeYears(closest),
         closestApproachDistanceKm: event.detectedDistanceKm,
         relativeVInfinityKps: event.relativeSpeedMps / 1_000,
         heliocentricSpeedBeforeKps: event.incomingSpeedMps / 1_000,
@@ -55,31 +63,13 @@ function assistReport(mission: MissionConfig, result: TrajectoryResult) {
         deltaVGainedKps: event.velocityGainMps / 1_000
       };
     }
-
-    const closest = result.simulationData.reduce(
-      (best, step) => {
-        const bodyPosition = bodyPositionAtTime(assist.planetName, step.elapsedSeconds, mission.launchDate);
-        const separationM = distance(step.position, bodyPosition);
-        return separationM < best.separationM
-          ? { separationM, elapsedSeconds: step.elapsedSeconds, velocity: step.velocity }
-          : best;
-      },
-      {
-        separationM: Number.POSITIVE_INFINITY,
-        elapsedSeconds: 0,
-        velocity: result.simulationData[0].velocity
-      }
-    );
-    const relativeSpeedMps = magnitude(
-      subtract(closest.velocity, bodyVelocityAtTime(assist.planetName, closest.elapsedSeconds, mission.launchDate))
-    );
     return {
       body: assist.planetName,
       encounter: "No encounter",
-      closestApproachTimeYears: closest.elapsedSeconds / YEAR_S,
-      closestApproachDistanceAu: closest.separationM / AU_M,
-      closestApproachDistanceKm: closest.separationM / 1_000,
-      relativeSpeedAtClosestKps: relativeSpeedMps / 1_000,
+      encounterTimeYears: null,
+      closestApproachTimeYears: closestApproachTimeYears(closest),
+      closestApproachDistanceKm: closest.distanceM / 1_000,
+      relativeVInfinityKps: closest.relativeSpeedMps / 1_000,
       heliocentricSpeedBeforeKps: null,
       heliocentricSpeedAfterKps: null,
       deltaVGainedKps: null
@@ -89,11 +79,29 @@ function assistReport(mission: MissionConfig, result: TrajectoryResult) {
 
 describe("requested 90-year mission baselines", () => {
   it("runs chemistry/fusion with the same on/off assist setup and prints verified metrics", () => {
+    const earthPeriodDays = celestialBodies.Earth.orbitalPeriodDays;
+    const jupiterPeriodDays = celestialBodies.Jupiter.orbitalPeriodDays;
+    const synodicPeriodDays = 1 / Math.abs(1 / earthPeriodDays - 1 / jupiterPeriodDays);
+    const launchWindow = scanJupiterLaunchWindow(createMission("Chemical Rocket", false), 950);
+    const noEncounterThresholdKm =
+      celestialBodies.Jupiter.radiusKm + assistPlan[0].closestApproachKm + 3 * celestialBodies.Jupiter.radiusKm;
+    console.log("Jupiter launch-window scan", {
+      launchDate: launchWindow.launchDate,
+      offsetDays: launchWindow.dateOffsetDays,
+      candidatesScanned: launchWindow.candidatesScanned,
+      synodicPeriodDays,
+      scanHorizonYears: launchWindow.scanHorizonYears,
+      closestApproachTimeYears: closestApproachTimeYears(launchWindow),
+      closestApproachDistanceKm: launchWindow.distanceM / 1_000,
+      relativeVInfinityKps: launchWindow.relativeSpeedMps / 1_000,
+      noEncounterThresholdKm
+    });
+    const launchDate = launchWindow.launchDate;
     const scenarios = [
-      { label: "Baseline 1", mission: createMission("Chemical Rocket", false) },
-      { label: "Baseline 2", mission: createMission("Chemical Rocket", true) },
-      { label: "Test 1", mission: createMission("Fusion Rocket", false) },
-      { label: "Test 2", mission: createMission("Fusion Rocket", true) }
+      { label: "Baseline 1", mission: createMission("Chemical Rocket", false, launchDate) },
+      { label: "Baseline 2", mission: createMission("Chemical Rocket", true, launchDate) },
+      { label: "Test 1", mission: createMission("Fusion Rocket", false, launchDate) },
+      { label: "Test 2", mission: createMission("Fusion Rocket", true, launchDate) }
     ];
     const results = scenarios.map(({ label, mission }) => ({
       label,
@@ -103,11 +111,12 @@ describe("requested 90-year mission baselines", () => {
     const solarCoastResults = results.map(({ mission }) =>
       runTrajectorySimulation({ ...mission, applyGravityAssists: false }, 950, { gravityBodies: ["Sun"] })
     );
-    const rows = results.map(({ label, result }, index) => {
+    const rows = results.map(({ label, mission, result }, index) => {
       const final = result.simulationData.at(-1)!;
       const finalEnergy = orbitalEnergy(final.position, final.velocity);
       return {
         case: label,
+        launchDate: mission.launchDate,
         peakSpeedKps: result.maxVelocityKps,
         finalVInfinityKps: finalEnergy > 0 ? Math.sqrt(2 * finalEnergy) / 1_000 : null,
         distanceAt90YearsAu: result.totalDistanceAu,
@@ -120,7 +129,6 @@ describe("requested 90-year mission baselines", () => {
       };
     });
     const assistReports = results
-      .filter(({ mission }) => mission.applyGravityAssists)
       .flatMap(({ label, mission, result }) => [{ run: label, ...assistReport(mission, result)[0] }]);
     console.log("90-year mission results", rows);
     console.log("assist encounter details", assistReports);
@@ -129,17 +137,22 @@ describe("requested 90-year mission baselines", () => {
       expect(result.travelTimeYears).toBeCloseTo(90, 5);
       expect(result.fuelRemainingKg).toBeGreaterThanOrEqual(0);
       expect(result.fuelRemainingKg).toBeLessThanOrEqual(mission.fuelMassKg);
+      expect(result.gravityAssistEvents).toHaveLength(0);
     }
+    expect(launchWindow.distanceM / 1_000).toBeGreaterThan(noEncounterThresholdKm);
     for (const result of solarCoastResults) {
       expect(energyCoastDrift(result).percent).toBeLessThan(0.1);
     }
     expect(results[0].mission.launchDate).toBe(results[1].mission.launchDate);
+    expect(results[0].mission.launchDate).toBe(launchWindow.launchDate);
     expect(results[0].mission.initialVelocityMps).toBe(results[1].mission.initialVelocityMps);
     if (results[1].result.gravityAssistEvents.length === 0) {
       expect(results[0].result.simulationData).toEqual(results[1].result.simulationData);
     }
     expect(results[2].mission.launchDate).toBe(results[3].mission.launchDate);
+    expect(results[2].mission.launchDate).toBe(launchWindow.launchDate);
     expect(results[2].mission.initialVelocityMps).toBe(results[3].mission.initialVelocityMps);
+    expect(results[2].result.optimizationScore).toBeGreaterThan(results[0].result.optimizationScore);
     if (results[3].result.gravityAssistEvents.length === 0) {
       expect(results[2].result.simulationData).toEqual(results[3].result.simulationData);
     }

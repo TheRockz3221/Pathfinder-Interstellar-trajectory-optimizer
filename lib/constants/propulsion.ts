@@ -42,7 +42,7 @@ export const propulsionModels: Record<PropulsionType, PropulsionModel> = {
     type: "Fusion Rocket",
     specificImpulseS: 18_000,
     nominalThrustN: 8_000,
-    exhaustVelocityMps: 176_580,
+    exhaustVelocityMps: 176_519.7,
     fuelEfficiency: 0.93,
     accelerationLimitMps2: 0.25,
     description: "Advanced high-energy propulsion with strong interstellar performance."

@@ -23,7 +23,6 @@ const MAX_INTERNAL_STEP_SECONDS = 30 * DAY_S;
 const PROPULSIVE_STEP_SECONDS = 0.5 * DAY_S;
 const MIN_INTERNAL_STEP_SECONDS = 60;
 const TURN_RESOLUTION = 80;
-const PLANNED_ASSIST_CORRIDOR_M = 0.05 * AU_M;
 
 type SimulationOptions = {
   gravityBodies?: readonly CelestialBodyName[];
@@ -54,6 +53,10 @@ export function runTrajectorySimulation(
   let nextAssistIndex = 0;
   const launchPosition = bodyPositionAtTime(mission.launchBody, 0, mission.launchDate);
   const launchVelocity = bodyVelocityAtTime(mission.launchBody, 0, mission.launchDate);
+  const initialDestinationDistanceM = distance(
+    launchPosition,
+    bodyPositionAtTime(mission.destination, 0, mission.launchDate)
+  );
   const launchDirection =
     magnitude(launchVelocity) > 0
       ? normalize(launchVelocity)
@@ -146,13 +149,22 @@ export function runTrajectorySimulation(
   }
 
   const travelTimeYears = steps.at(-1)!.elapsedSeconds / YEAR_S;
+  const finalStep = steps.at(-1)!;
+  const finalDestinationDistanceM = distance(
+    finalStep.position,
+    bodyPositionAtTime(mission.destination, finalStep.elapsedSeconds, mission.launchDate)
+  );
+  const destinationProgress =
+    initialDestinationDistanceM > 0
+      ? (initialDestinationDistanceM - finalDestinationDistanceM) / initialDestinationDistanceM
+      : 0;
   const result: TrajectoryResult = {
     travelTimeYears,
     totalDistanceAu: traveledM / AU_M,
     maxVelocityKps: maxVelocity / 1_000,
     averageVelocityKps: traveledM / Math.max(steps.at(-1)!.elapsedSeconds, 1) / 1_000,
     deltaVKps: deltaVMps / 1_000,
-    optimizationScore: estimateMissionScore(mission, travelTimeYears, fuelRemainingKg, deltaVMps),
+    optimizationScore: estimateMissionScore(mission, fuelRemainingKg, deltaVMps, destinationProgress),
     fuelRemainingKg,
     simulationData: steps,
     gravityAssistEvents
@@ -275,11 +287,8 @@ function detectFlybyEncounter(
   const closestRelative = add(relativeStart, scale(relativeDelta, fraction));
   const distanceM = magnitude(closestRelative);
   const periapsisM = (body.radiusKm + Math.max(assist.closestApproachKm, 100)) * 1_000;
-  const sphereOfInfluenceM =
-    body.semiMajorAxisAu > 0
-      ? body.semiMajorAxisAu * AU_M * Math.pow(body.massKg / celestialBodies.Sun.massKg, 2 / 5)
-      : periapsisM;
-  const encounterRadiusM = Math.max(periapsisM * 4, sphereOfInfluenceM, PLANNED_ASSIST_CORRIDOR_M);
+  // Only apply the planned turn when the actual pass is near its target periapsis.
+  const encounterRadiusM = periapsisM + 3 * body.radiusKm * 1_000;
 
   if (distanceM > encounterRadiusM) {
     return null;

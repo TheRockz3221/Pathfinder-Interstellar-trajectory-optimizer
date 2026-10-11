@@ -166,18 +166,33 @@ function daysSinceReferenceEpoch(launchDate: string) {
   return (parsed - referenceEpoch) / (DAY_S * 1_000);
 }
 
-export function estimateMissionScore(mission: MissionConfig, travelTimeYears: number, fuelRemainingKg: number, deltaVMps: number) {
+export function estimateMissionScore(
+  mission: MissionConfig,
+  fuelRemainingKg: number,
+  deltaVMps: number,
+  destinationProgress: number
+) {
   const weights = mission.objectiveWeights;
-  const normalizedTime = Math.max(0, 1 - travelTimeYears / mission.maxMissionDurationYears);
-  const normalizedFuel = Math.max(0, fuelRemainingKg / mission.fuelMassKg);
-  const normalizedSafety = Math.max(0, 1 - mission.gravityAssists.length * 0.035);
-  const normalizedDeltaV = Math.max(0, 1 - deltaVMps / Math.max(rocketEquationDeltaV(mission.propulsionType, mission.payloadMassKg, mission.fuelMassKg), 1));
+  const normalizedProgress = clamp(destinationProgress, 0, 1);
+  const normalizedFuel = mission.fuelMassKg > 0 ? clamp(fuelRemainingKg / mission.fuelMassKg, 0, 1) : 1;
+  const normalizedSafety = clamp(1 - mission.gravityAssists.length * 0.035, 0, 1);
+  const deltaVBudget = rocketEquationDeltaV(
+    mission.propulsionType,
+    mission.payloadMassKg,
+    mission.fuelMassKg,
+    mission.propulsionSettings.specificImpulseS
+  );
+  const normalizedDeltaV = clamp(1 - deltaVMps / Math.max(deltaVBudget, 1), 0, 1);
   const totalWeight = weights.travelTime + weights.fuel + weights.safety + weights.deltaV;
   return (
-    (weights.travelTime * normalizedTime +
+    (weights.travelTime * normalizedProgress +
       weights.fuel * normalizedFuel +
       weights.safety * normalizedSafety +
       weights.deltaV * normalizedDeltaV) /
     totalWeight
   ) * 100;
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
 }

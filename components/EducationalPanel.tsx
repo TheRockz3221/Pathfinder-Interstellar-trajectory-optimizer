@@ -4,11 +4,20 @@ import { BookOpenCheck } from "lucide-react";
 import { escapeVelocity, gravityAssistVelocityGain, rocketEquationDeltaV } from "@/lib/physics/orbital";
 import { cassiniEarthFlybyValidation } from "@/lib/physics/cassini-validation";
 import { DIFFERENTIAL_EVOLUTION_SETTINGS } from "@/lib/optimization/optimizer";
+import { propulsionModels } from "@/lib/constants/propulsion";
 import type { MissionConfig, TrajectoryResult } from "@/lib/types";
 import { formatNumber } from "@/lib/utils";
 
 export function EducationalPanel({ mission, result }: { mission: MissionConfig; result: TrajectoryResult }) {
-  const rocketDv = rocketEquationDeltaV(mission.propulsionType, mission.payloadMassKg, mission.fuelMassKg);
+  const propulsionModel = propulsionModels[mission.propulsionType];
+  const specificImpulseS = mission.propulsionSettings.specificImpulseS ?? propulsionModel.specificImpulseS;
+  const exhaustVelocityMps = specificImpulseS * 9.80665;
+  const rocketDv = rocketEquationDeltaV(
+    mission.propulsionType,
+    mission.payloadMassKg,
+    mission.fuelMassKg,
+    specificImpulseS
+  );
   const escape = escapeVelocity(mission.launchBody);
   const assist = mission.gravityAssists[0]
     ? gravityAssistVelocityGain(mission.gravityAssists[0].planetName, mission.gravityAssists[0].closestApproachKm, mission.initialVelocityMps)
@@ -40,8 +49,13 @@ export function EducationalPanel({ mission, result }: { mission: MissionConfig; 
     {
       title: "Mission Performance",
       equation:
-        "100 × [wt·max(0,1−t/T) + wf·max(0,Fleft/Ftotal) + ws·max(0,1−0.035Nassist) + wd·max(0,1−Δv/Δvmax)] / Σw",
-      body: `The current weighted objective scores ${formatNumber(result.optimizationScore, 1)} using the configured mission priorities.`
+        "Score = 100 × (wtravel·P + wfuel·F + wsafety·S + wΔv·D) / Σw; P=clamp((initial range−final range)/initial range,0,1); F=clamp(fuel left/fuel total,0,1); S=clamp(1−0.035·Nplanned assists,0,1); D=clamp(1−Δv used/Δv budget,0,1), Δv budget=Isp·g0·ln((payload+fuel)/payload).",
+      body: `The current weighted objective scores ${formatNumber(result.optimizationScore, 2)}. Travel is measured as destination-range progress over the simulated window; it does not award points simply for reaching the 90-year limit.`
+    },
+    {
+      title: "Propulsion Performance",
+      equation: `Isp = ${formatNumber(specificImpulseS, 0)} s · ve = Isp × g0 = ${formatNumber(exhaustVelocityMps, 1)} m/s`,
+      body: `The simulator uses ${formatNumber(specificImpulseS, 0)} s specific impulse in the rocket equation for ${mission.propulsionType}. The displayed effective exhaust velocity is derived from that Isp using g0 = 9.80665 m/s².`
     },
     {
       title: "Differential Evolution Settings",
@@ -64,7 +78,7 @@ export function EducationalPanel({ mission, result }: { mission: MissionConfig; 
             <p className="mt-2 text-sm leading-6 text-slate-300">{card.body}</p>
             {card.title === "Mission Performance" && (
               <p className="mt-2 text-xs leading-5 text-slate-400">
-                Current weights: time {mission.objectiveWeights.travelTime}%, fuel {mission.objectiveWeights.fuel}%, safety {mission.objectiveWeights.safety}%, delta-v {mission.objectiveWeights.deltaV}%.
+                Current weights: travel progress {mission.objectiveWeights.travelTime}%, fuel {mission.objectiveWeights.fuel}%, safety {mission.objectiveWeights.safety}%, delta-v {mission.objectiveWeights.deltaV}%.
               </p>
             )}
           </article>

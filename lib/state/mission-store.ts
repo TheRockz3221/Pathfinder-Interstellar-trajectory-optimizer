@@ -27,7 +27,7 @@ export const defaultMission: MissionConfig = {
   },
   propulsionSettings: {
     reactorEfficiency: 0.42,
-    exhaustVelocityMps: 176_580,
+    exhaustVelocityMps: 176_519.7,
     powerOutputW: 3.2e9,
     reactionMassKg: 8_500,
     sailAreaM2: 90_000,

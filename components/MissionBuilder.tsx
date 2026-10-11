@@ -68,7 +68,7 @@ export function MissionBuilder() {
 
       <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Object.entries(mission.objectiveWeights).map(([key, value]) => (
-          <Field key={key} label={key.replace(/([A-Z])/g, " $1")}>
+          <Field key={key} label={key === "travelTime" ? "Travel progress" : key.replace(/([A-Z])/g, " $1")}>
             <input
               type="range"
               min="0"

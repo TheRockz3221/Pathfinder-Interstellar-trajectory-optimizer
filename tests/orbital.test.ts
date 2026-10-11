@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   escapeVelocity,
   gravityAssistVelocityGain,
+  estimateMissionScore,
   orbitalEnergy,
   rocketEquationDeltaV,
   solarRadiationPressureAcceleration
@@ -11,6 +12,7 @@ import { runTrajectorySimulation } from "@/lib/physics/simulation";
 import { defaultMission } from "@/lib/state/mission-store";
 import { magnitude } from "@/lib/physics/orbital";
 import { cassiniEarthFlybyValidation } from "@/lib/physics/cassini-validation";
+import { propulsionModels } from "@/lib/constants/propulsion";
 
 describe("orbital mechanics helpers", () => {
   it("computes Earth escape velocity near the known surface value", () => {
@@ -67,6 +69,24 @@ describe("orbital mechanics helpers", () => {
     const mission = { ...defaultMission, gravityAssists: [], initialVelocityMps: 42_000 };
     const result = runTrajectorySimulation(mission, 120);
     expect(magnitude(result.simulationData[0].velocity)).toBeCloseTo(mission.initialVelocityMps, 8);
+  });
+
+  it("scores destination progress so propulsion variants do not plateau at the safety term", () => {
+    const mission = {
+      ...defaultMission,
+      objectiveWeights: { travelTime: 70, fuel: 15, safety: 10, deltaV: 5 }
+    };
+    const slowProgressScore = estimateMissionScore(mission, 0, 0, 466 / 276_000);
+    const fastProgressScore = estimateMissionScore(mission, 0, 0, 7_532 / 276_000);
+
+    expect(fastProgressScore).toBeGreaterThan(slowProgressScore);
+    expect(slowProgressScore).not.toBeCloseTo(9.65, 2);
+  });
+
+  it("uses the fusion model's Isp-consistent effective exhaust velocity", () => {
+    const fusion = propulsionModels["Fusion Rocket"];
+    expect(fusion.specificImpulseS).toBe(18_000);
+    expect(fusion.exhaustVelocityMps).toBeCloseTo(fusion.specificImpulseS * 9.80665, 6);
   });
 
   it("keeps the exact trajectory when configured assists are disabled", () => {
