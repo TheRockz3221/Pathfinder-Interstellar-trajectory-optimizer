@@ -43,8 +43,10 @@ describe("orbital mechanics helpers", () => {
     expect(assist.velocityGainMps / 1_000).toBeLessThan(5);
   });
 
-  it("reproduces Cassini's documented Earth flyby vector delta-v within one percent", () => {
-    expect(cassiniEarthFlybyValidation.approachVInfinityMps / 1_000).toBeCloseTo(16.016, 2);
+  it("compares the Cassini Earth flyby estimate with the documented 5.5 km/s boost", () => {
+    expect(cassiniEarthFlybyValidation.periapsisAltitudeKm).toBe(1_171);
+    expect(cassiniEarthFlybyValidation.approachVInfinityMps).toBeCloseTo(16_016, 8);
+    expect(cassiniEarthFlybyValidation.documentedDeltaVMps).toBe(5_500);
     expect(cassiniEarthFlybyValidation.percentDifference).toBeLessThan(1);
   });
 

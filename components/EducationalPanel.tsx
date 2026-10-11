@@ -86,19 +86,19 @@ export function EducationalPanel({ mission, result }: { mission: MissionConfig; 
         <article className="min-w-0 rounded-md border border-cyan-signal/20 bg-white/[0.035] p-4">
           <h3 className="text-sm font-semibold text-white">Cassini Earth Flyby Validation</h3>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            {cassiniEarthFlybyValidation.date}: NASA reports a 1,186 km periapsis altitude. JPL Horizons reconstructed
-            geocentric states give an energy-corrected approach v∞ of {formatNumber(cassiniEarthFlybyValidation.approachVInfinityMps / 1_000, 3)} km/s.
+            {cassiniEarthFlybyValidation.date}: using the JPL/ESA reported {formatNumber(cassiniEarthFlybyValidation.periapsisAltitudeKm, 0)} km periapsis altitude and
+            approach v∞ of {formatNumber(cassiniEarthFlybyValidation.approachVInfinityMps / 1_000, 3)} km/s.
           </p>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
-            <div><dt className="text-slate-400">Ephemeris vector Δv</dt><dd className="text-white">{formatNumber(cassiniEarthFlybyValidation.ephemerisDeltaVMps / 1_000, 3)} km/s</dd></div>
+            <div><dt className="text-slate-400">Documented boost</dt><dd className="text-white">{formatNumber(cassiniEarthFlybyValidation.documentedDeltaVMps / 1_000, 3)} km/s</dd></div>
             <div><dt className="text-slate-400">Patched-conic Δv</dt><dd className="text-white">{formatNumber(cassiniEarthFlybyValidation.simulatedDeltaVMps / 1_000, 3)} km/s</dd></div>
             <div><dt className="text-slate-400">Difference</dt><dd className="text-white">{formatNumber(cassiniEarthFlybyValidation.percentDifference, 3)}%</dd></div>
           </dl>
           <p className="mt-2 text-xs leading-5 text-slate-400">
-            Δv compares the relative-velocity vector change, not heliocentric scalar-speed gain. v∞ is derived from the JPL Horizons Earth-relative states at 1999-08-17 12:00 and 1999-08-19 12:00 TDB.
+            Δv compares the patched-conic relative-velocity change with the documented boost; it is not heliocentric scalar-speed gain.
           </p>
           <div className="mt-2 flex flex-wrap gap-3 text-xs text-cyan-soft">
-            <a href={cassiniEarthFlybyValidation.sourceLinks.altitude} target="_blank" rel="noreferrer" className="underline">NASA NTRS flyby altitude</a>
+            <a href={cassiniEarthFlybyValidation.sourceLinks.altitude} target="_blank" rel="noreferrer" className="underline">JPL flyby altitude press release</a>
             <a href={cassiniEarthFlybyValidation.sourceLinks.ephemeris} target="_blank" rel="noreferrer" className="underline">NASA/JPL Horizons ephemeris</a>
           </div>
         </article>
