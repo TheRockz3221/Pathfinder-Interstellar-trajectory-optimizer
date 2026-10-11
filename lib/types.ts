@@ -58,6 +58,7 @@ export type MissionConfig = {
   optimizationMethod: OptimizationMethod;
   integrator: IntegratorType;
   gravityAssists: GravityAssistPlan[];
+  applyGravityAssists: boolean;
   objectiveWeights: ObjectiveWeights;
   propulsionSettings: PropulsionSettings;
 };
@@ -92,6 +93,18 @@ export type SimulationStep = {
   deltaVMps: number;
 };
 
+export type GravityAssistEvent = {
+  planetName: CelestialBodyName;
+  flybyOrder: number;
+  elapsedSeconds: number;
+  closestApproachKm: number;
+  detectedDistanceKm: number;
+  relativeSpeedMps: number;
+  incomingSpeedMps: number;
+  velocityGainMps: number;
+  outgoingSpeedMps: number;
+};
+
 export type TrajectoryResult = {
   travelTimeYears: number;
   totalDistanceAu: number;
@@ -101,6 +114,7 @@ export type TrajectoryResult = {
   optimizationScore: number;
   fuelRemainingKg: number;
   simulationData: SimulationStep[];
+  gravityAssistEvents: GravityAssistEvent[];
 };
 
 export type OptimizationRun = {
@@ -108,6 +122,7 @@ export type OptimizationRun = {
   generation: number;
   score: number;
   travelTimeYears: number;
+  deltaVKps: number;
   fuelUsedKg: number;
 };
 

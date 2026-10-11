@@ -20,6 +20,7 @@ body {
 body {
   margin: 0;
   overflow-x: hidden;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
 }
 
 body::before,

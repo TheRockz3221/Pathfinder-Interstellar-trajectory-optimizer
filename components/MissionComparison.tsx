@@ -1,53 +1,60 @@
 "use client";
 
-import { useMemo } from "react";
-import { mutateMissionForComparison } from "@/lib/optimization/optimizer";
-import { runTrajectorySimulation } from "@/lib/physics/simulation";
-import type { MissionConfig } from "@/lib/types";
+import type { MissionConfig, TrajectoryResult } from "@/lib/types";
 import { formatNumber } from "@/lib/utils";
 
-export function MissionComparison({ mission }: { mission: MissionConfig }) {
-  const rows = useMemo(
-    () =>
-      mutateMissionForComparison(mission).map((candidate) => ({
-        mission: candidate,
-        result: runTrajectorySimulation(candidate, 420)
-      })),
-    [mission]
-  );
+export type RecentMissionRun = {
+  id: string;
+  mission: MissionConfig;
+  result: TrajectoryResult;
+  capturedAt: string;
+};
+
+export function MissionComparison({ runs }: { runs: RecentMissionRun[] }) {
+  if (runs.length === 0) {
+    return (
+      <section className="panel min-w-0 p-4">
+        <h2 className="text-base font-semibold text-white">Mission Comparison</h2>
+        <div className="mt-4 rounded-md border border-dashed border-white/15 p-6 text-center text-sm text-slate-400">
+          No recent runs yet. Configure a mission to add its simulation to this session’s comparison.
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="panel min-w-0 p-4">
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-white">Mission Comparison</h2>
-        <p className="text-sm leading-6 text-slate-300">Baseline versus propulsion and gravity-assist variants.</p>
+        <h2 className="text-base font-semibold text-white">Recent Mission Runs</h2>
+        <p className="text-sm leading-6 text-slate-300">Latest {runs.length} simulations from this session, available without login.</p>
       </div>
-      <div className="min-w-0">
-        <table className="w-full table-fixed border-separate border-spacing-y-2 text-left text-xs">
-          <thead className="text-[10px] uppercase tracking-[0.08em] text-slate-400 sm:text-xs sm:tracking-[0.1em]">
-            <tr>
-              <th className="w-[18%] px-1.5 py-2 sm:px-2">Mission</th>
-              <th className="w-[21%] px-1.5 py-2 sm:px-2">Propulsion</th>
-              <th className="w-[15%] px-1.5 py-2 sm:px-2">Travel time</th>
-              <th className="w-[18%] px-1.5 py-2 sm:px-2">Fuel remaining</th>
-              <th className="w-[15%] px-1.5 py-2 sm:px-2">Delta-v</th>
-              <th className="w-[13%] px-1.5 py-2 sm:px-2">Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ mission: rowMission, result }) => (
-              <tr key={rowMission.id} className="rounded-md bg-white/[0.045]">
-                <td className="break-words rounded-l-md px-1.5 py-3 font-medium leading-5 text-white sm:px-2">{rowMission.missionName}</td>
-                <td className="break-words px-1.5 py-3 leading-5 text-slate-300 sm:px-2">{rowMission.propulsionType}</td>
-                <td className="break-words px-1.5 py-3 leading-5 text-slate-300 sm:px-2">{formatNumber(result.travelTimeYears, 1)} yr</td>
-                <td className="break-words px-1.5 py-3 leading-5 text-emerald sm:px-2">{formatNumber(result.fuelRemainingKg, 0)} kg</td>
-                <td className="break-words px-1.5 py-3 leading-5 text-slate-300 sm:px-2">{formatNumber(result.deltaVKps, 2)} km/s</td>
-                <td className="break-words rounded-r-md px-1.5 py-3 leading-5 text-gold-mission sm:px-2">{formatNumber(result.optimizationScore, 1)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
+        {runs.map(({ id, mission, result, capturedAt }) => (
+          <article key={id} className="min-w-0 rounded-md border border-white/10 bg-white/[0.035] p-3">
+            <h3 className="break-words text-sm font-semibold text-white">{mission.missionName}</h3>
+            <p className="mt-1 break-words text-xs text-slate-400">
+              {mission.propulsionType} · {mission.applyGravityAssists ? "assists on" : "assists off"} · {new Date(capturedAt).toLocaleString()}
+            </p>
+            <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <Metric label="Simulated window" value={`${formatNumber(result.travelTimeYears, 1)} yr`} />
+              <Metric label="Peak speed" value={`${formatNumber(result.maxVelocityKps, 1)} km/s`} />
+              <Metric label="Fuel remaining" value={`${formatNumber(result.fuelRemainingKg, 0)} kg`} />
+              <Metric label="Delta-v" value={`${formatNumber(result.deltaVKps, 2)} km/s`} />
+              <Metric label="Score" value={formatNumber(result.optimizationScore, 1)} />
+              <Metric label="Flybys applied" value={result.gravityAssistEvents.map((event) => event.planetName).join(", ") || "None"} />
+            </dl>
+          </article>
+        ))}
       </div>
     </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded border border-white/[0.06] p-2">
+      <dt className="text-slate-400">{label}</dt>
+      <dd className="mt-1 break-words font-medium text-slate-100">{value}</dd>
+    </div>
   );
 }

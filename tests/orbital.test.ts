@@ -9,6 +9,8 @@ import {
 import { AU_M } from "@/lib/constants/celestial-bodies";
 import { runTrajectorySimulation } from "@/lib/physics/simulation";
 import { defaultMission } from "@/lib/state/mission-store";
+import { magnitude } from "@/lib/physics/orbital";
+import { cassiniEarthFlybyValidation } from "@/lib/physics/cassini-validation";
 
 describe("orbital mechanics helpers", () => {
   it("computes Earth escape velocity near the known surface value", () => {
@@ -34,9 +36,14 @@ describe("orbital mechanics helpers", () => {
     expect(assist.turningAngleDeg).toBeGreaterThan(0);
   });
 
-  it("keeps Jupiter's velocity change below 5 km/s at 400 km/s and 62,000 km altitude", () => {
+  it("keeps Jupiter's vector change under 5 km/s at 400 km/s and 62,000 km altitude", () => {
     const assist = gravityAssistVelocityGain("Jupiter", 62_000, 400_000);
     expect(assist.velocityGainMps / 1_000).toBeLessThan(5);
+  });
+
+  it("reproduces Cassini's documented Earth flyby vector delta-v within one percent", () => {
+    expect(cassiniEarthFlybyValidation.approachVInfinityMps / 1_000).toBeCloseTo(16.016, 2);
+    expect(cassiniEarthFlybyValidation.percentDifference).toBeLessThan(1);
   });
 
   it("conserves two-body coast energy over a long Sun-only no-thrust run", () => {
@@ -55,4 +62,26 @@ describe("orbital mechanics helpers", () => {
 
     expect(Math.abs((finalEnergy - initialEnergy) / initialEnergy)).toBeLessThan(0.0001);
   });
+
+  it("sets launch heliocentric speed to the configured initial velocity", () => {
+    const mission = { ...defaultMission, gravityAssists: [], initialVelocityMps: 42_000 };
+    const result = runTrajectorySimulation(mission, 120);
+    expect(magnitude(result.simulationData[0].velocity)).toBeCloseTo(mission.initialVelocityMps, 8);
+  });
+
+  it("keeps the exact trajectory when configured assists are disabled", () => {
+    const mission = {
+      ...defaultMission,
+      gravityAssists: [{ planetName: "Jupiter" as const, flybyOrder: 1, closestApproachKm: 540_000 }]
+    };
+    const disabled = runTrajectorySimulation({ ...mission, applyGravityAssists: false }, 120);
+    const enabled = runTrajectorySimulation({ ...mission, applyGravityAssists: true }, 120);
+
+    expect(disabled.simulationData[0].velocity).toEqual(enabled.simulationData[0].velocity);
+    expect(disabled.simulationData[0].position).toEqual(enabled.simulationData[0].position);
+    expect(disabled.gravityAssistEvents).toEqual([]);
+    expect(enabled.gravityAssistEvents).toEqual([]);
+    expect(disabled.simulationData).toEqual(enabled.simulationData);
+  });
+
 });

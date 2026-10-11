@@ -2,6 +2,8 @@
 
 import { BookOpenCheck } from "lucide-react";
 import { escapeVelocity, gravityAssistVelocityGain, rocketEquationDeltaV } from "@/lib/physics/orbital";
+import { cassiniEarthFlybyValidation } from "@/lib/physics/cassini-validation";
+import { DIFFERENTIAL_EVOLUTION_SETTINGS } from "@/lib/optimization/optimizer";
 import type { MissionConfig, TrajectoryResult } from "@/lib/types";
 import { formatNumber } from "@/lib/utils";
 
@@ -37,8 +39,14 @@ export function EducationalPanel({ mission, result }: { mission: MissionConfig; 
     },
     {
       title: "Mission Performance",
-      equation: "score = weighted(time, fuel, safety, delta-v)",
+      equation:
+        "100 × [wt·max(0,1−t/T) + wf·max(0,Fleft/Ftotal) + ws·max(0,1−0.035Nassist) + wd·max(0,1−Δv/Δvmax)] / Σw",
       body: `The current weighted objective scores ${formatNumber(result.optimizationScore, 1)} using the configured mission priorities.`
+    },
+    {
+      title: "Differential Evolution Settings",
+      equation: `population ${DIFFERENTIAL_EVOLUTION_SETTINGS.populationSize} · mutation ${DIFFERENTIAL_EVOLUTION_SETTINGS.mutation} · crossover ${DIFFERENTIAL_EVOLUTION_SETTINGS.crossover}`,
+      body: `Bounds: initial velocity ${formatNumber(DIFFERENTIAL_EVOLUTION_SETTINGS.bounds.initialVelocityMps.min / 1_000, 0)}–${formatNumber(DIFFERENTIAL_EVOLUTION_SETTINGS.bounds.initialVelocityMps.max / 1_000, 0)} km/s; max acceleration ${DIFFERENTIAL_EVOLUTION_SETTINGS.bounds.maxAccelerationMps2.min}–${DIFFERENTIAL_EVOLUTION_SETTINGS.bounds.maxAccelerationMps2.max} m/s². Stop after ${DIFFERENTIAL_EVOLUTION_SETTINGS.maxGenerations} generations, or after at least ${DIFFERENTIAL_EVOLUTION_SETTINGS.minimumGenerations} generations when best-score improvement stays within ${DIFFERENTIAL_EVOLUTION_SETTINGS.scoreTolerance} for ${DIFFERENTIAL_EVOLUTION_SETTINGS.stableGenerations} consecutive generations.`
     }
   ];
 
@@ -54,8 +62,32 @@ export function EducationalPanel({ mission, result }: { mission: MissionConfig; 
             <h3 className="text-sm font-semibold text-white">{card.title}</h3>
             <p className="mt-2 break-words font-mono text-sm leading-6 text-gold-mission">{card.equation}</p>
             <p className="mt-2 text-sm leading-6 text-slate-300">{card.body}</p>
+            {card.title === "Mission Performance" && (
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Current weights: time {mission.objectiveWeights.travelTime}%, fuel {mission.objectiveWeights.fuel}%, safety {mission.objectiveWeights.safety}%, delta-v {mission.objectiveWeights.deltaV}%.
+              </p>
+            )}
           </article>
         ))}
+        <article className="min-w-0 rounded-md border border-cyan-signal/20 bg-white/[0.035] p-4">
+          <h3 className="text-sm font-semibold text-white">Cassini Earth Flyby Validation</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            {cassiniEarthFlybyValidation.date}: NASA reports a 1,186 km periapsis altitude. JPL Horizons reconstructed
+            geocentric states give an energy-corrected approach v∞ of {formatNumber(cassiniEarthFlybyValidation.approachVInfinityMps / 1_000, 3)} km/s.
+          </p>
+          <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+            <div><dt className="text-slate-400">Ephemeris vector Δv</dt><dd className="text-white">{formatNumber(cassiniEarthFlybyValidation.ephemerisDeltaVMps / 1_000, 3)} km/s</dd></div>
+            <div><dt className="text-slate-400">Patched-conic Δv</dt><dd className="text-white">{formatNumber(cassiniEarthFlybyValidation.simulatedDeltaVMps / 1_000, 3)} km/s</dd></div>
+            <div><dt className="text-slate-400">Difference</dt><dd className="text-white">{formatNumber(cassiniEarthFlybyValidation.percentDifference, 3)}%</dd></div>
+          </dl>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            Δv compares the relative-velocity vector change, not heliocentric scalar-speed gain. v∞ is derived from the JPL Horizons Earth-relative states at 1999-08-17 12:00 and 1999-08-19 12:00 TDB.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-3 text-xs text-cyan-soft">
+            <a href={cassiniEarthFlybyValidation.sourceLinks.altitude} target="_blank" rel="noreferrer" className="underline">NASA NTRS flyby altitude</a>
+            <a href={cassiniEarthFlybyValidation.sourceLinks.ephemeris} target="_blank" rel="noreferrer" className="underline">NASA/JPL Horizons ephemeris</a>
+          </div>
+        </article>
       </div>
     </section>
   );

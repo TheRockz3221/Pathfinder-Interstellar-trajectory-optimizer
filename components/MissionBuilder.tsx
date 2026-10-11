@@ -56,7 +56,7 @@ export function MissionBuilder() {
         </Field>
         <NumberField label="Payload mass kg" value={mission.payloadMassKg} onChange={(payloadMassKg) => updateMission({ payloadMassKg })} />
         <NumberField label="Fuel mass kg" value={mission.fuelMassKg} onChange={(fuelMassKg) => updateMission({ fuelMassKg })} />
-        <NumberField label="Initial velocity m/s" value={mission.initialVelocityMps} onChange={(initialVelocityMps) => updateMission({ initialVelocityMps })} />
+        <NumberField label="Initial heliocentric speed (m/s)" value={mission.initialVelocityMps} onChange={(initialVelocityMps) => updateMission({ initialVelocityMps })} />
         <NumberField label="Max acceleration m/s2" value={mission.maxAccelerationMps2} step={0.01} onChange={(maxAccelerationMps2) => updateMission({ maxAccelerationMps2 })} />
         <NumberField label="Max duration years" value={mission.maxMissionDurationYears} onChange={(maxMissionDurationYears) => updateMission({ maxMissionDurationYears })} />
         <Field label="Optimizer">
@@ -100,6 +100,16 @@ export function MissionBuilder() {
             Add
           </button>
         </div>
+        <label className="mb-3 flex items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={mission.applyGravityAssists}
+            onChange={(event) => updateMission({ applyGravityAssists: event.target.checked })}
+            className="accent-cyan-signal"
+          />
+          Apply assists
+        </label>
+        <p className="mb-2 text-xs text-slate-400">Periapsis altitude (km)</p>
         <div className="space-y-2">
           {mission.gravityAssists.map((assist, index) => (
             <div key={`${assist.flybyOrder}-${index}`} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,120px)_38px] gap-2">
@@ -117,6 +127,7 @@ export function MissionBuilder() {
               <input
                 type="number"
                 value={assist.closestApproachKm}
+                aria-label={`Periapsis altitude (km) for ${assist.planetName}`}
                 onChange={(event) => {
                   const next = [...mission.gravityAssists];
                   next[index] = { ...assist, closestApproachKm: Number(event.target.value) };

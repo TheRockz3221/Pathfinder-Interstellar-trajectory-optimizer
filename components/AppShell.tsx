@@ -4,10 +4,9 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, BookOpen, ChevronDown, GitCompare, Orbit, RotateCcw, Satellite } from "lucide-react";
 import { generateMissionRecommendations } from "@/lib/ai/recommendations";
-import { runOptimizationPreview } from "@/lib/optimization/optimizer";
+import { runOptimizationPreview, runOptimizationSeeds, type SeedSummary } from "@/lib/optimization/optimizer";
 import { runTrajectorySimulation } from "@/lib/physics/simulation";
 import { useMissionStore } from "@/lib/state/mission-store";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { cn, formatNumber } from "@/lib/utils";
 import { AiMissionPlanner } from "@/components/AiMissionPlanner";
 import { AuthPanel } from "@/components/AuthPanel";
@@ -15,7 +14,7 @@ import { ChartsPanel } from "@/components/ChartsPanel";
 import { EducationalPanel } from "@/components/EducationalPanel";
 import { ExportPanel } from "@/components/ExportPanel";
 import { MissionBuilder } from "@/components/MissionBuilder";
-import { MissionComparison } from "@/components/MissionComparison";
+import { MissionComparison, type RecentMissionRun } from "@/components/MissionComparison";
 import { MissionDashboard } from "@/components/MissionDashboard";
 import { OptimizationPanel } from "@/components/OptimizationPanel";
 
@@ -36,6 +35,9 @@ export function AppShell() {
   const result = useMemo(() => runTrajectorySimulation(mission, 950), [mission]);
   const [optimizationRuns, setOptimizationRuns] = useState<ReturnType<typeof runOptimizationPreview>>([]);
   const [isOptimizing, setIsOptimizing] = useState(true);
+  const [seedSummary, setSeedSummary] = useState<SeedSummary | null>(null);
+  const [optimizationError, setOptimizationError] = useState("");
+  const [recentRuns, setRecentRuns] = useState<RecentMissionRun[]>([]);
   const recommendations = useMemo(() => generateMissionRecommendations(mission, result), [mission, result]);
   const isDashboardView = selectedView === "dashboard";
 
@@ -56,6 +58,37 @@ export function AppShell() {
       window.clearTimeout(timeout);
     };
   }, [mission]);
+
+  useEffect(() => {
+    const signature = JSON.stringify(mission);
+    setRecentRuns((previous) => {
+      if (previous[0] && JSON.stringify(previous[0].mission) === signature) return previous;
+      const currentRun: RecentMissionRun = {
+        id: `${Date.now()}-${signature}`,
+        mission,
+        result,
+        capturedAt: new Date().toISOString()
+      };
+      return [currentRun, ...previous].slice(0, 4);
+    });
+  }, [mission, result]);
+
+  const handleRunSeeds = (count: number) => {
+    setIsOptimizing(true);
+    setOptimizationError("");
+    setSeedSummary(null);
+    window.setTimeout(() => {
+      try {
+        const batch = runOptimizationSeeds(mission, count);
+        setOptimizationRuns(batch.runs);
+        setSeedSummary(batch.summary);
+      } catch (error) {
+        setOptimizationError(error instanceof Error ? error.message : "Optimization failed.");
+      } finally {
+        setIsOptimizing(false);
+      }
+    }, 0);
+  };
 
   return (
     <main className="min-h-screen px-4 py-4 sm:px-6 lg:px-8">
@@ -78,6 +111,14 @@ export function AppShell() {
               <RotateCcw size={16} />
               Reset mission
             </button>
+            <details className="relative">
+              <summary className="inline-flex h-10 cursor-pointer list-none items-center rounded-md border border-white/10 bg-white/5 px-3 text-sm text-slate-200">
+                Account
+              </summary>
+              <div className="absolute right-0 top-full z-40 mt-2 w-[min(22rem,calc(100vw-2rem))]">
+                <AuthPanel />
+              </div>
+            </details>
           </div>
 
           <nav className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -102,7 +143,7 @@ export function AppShell() {
           </nav>
 
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <Snapshot label="Travel" value={`${formatNumber(result.travelTimeYears, 1)} yr`} />
+            <Snapshot label="Simulated window" value={`${formatNumber(result.travelTimeYears, 1)} / ${mission.maxMissionDurationYears} yr`} />
             <Snapshot label="Max velocity" value={`${formatNumber(result.maxVelocityKps, 1)} km/s`} />
             <Snapshot label="Fuel left" value={`${formatNumber(result.fuelRemainingKg, 0)} kg`} />
             <Snapshot label="Mission score" value={formatNumber(result.optimizationScore, 1)} />
@@ -114,7 +155,7 @@ export function AppShell() {
             {selectedView === "builder" ? (
               <MissionBuilder />
             ) : selectedView === "compare" ? (
-              <MissionComparison mission={mission} />
+              <MissionComparison runs={recentRuns} />
             ) : selectedView === "education" ? (
               <EducationalPanel mission={mission} result={result} />
             ) : (
@@ -132,13 +173,14 @@ export function AppShell() {
                 <ChevronDown size={16} className="text-cyan-soft transition group-open:rotate-180" />
               </summary>
               <div className="mt-4 grid gap-4">
-                <OptimizationPanel runs={optimizationRuns} isOptimizing={isOptimizing} />
+                <OptimizationPanel
+                  runs={optimizationRuns}
+                  isOptimizing={isOptimizing}
+                  seedSummary={seedSummary}
+                  error={optimizationError}
+                  onRunSeeds={handleRunSeeds}
+                />
                 <ExportPanel mission={mission} result={result} />
-                <AuthPanel />
-                <div className="rounded-md border border-white/10 bg-white/[0.03] p-3 text-xs text-slate-400">
-                  Supabase: {isSupabaseConfigured ? "connected from environment" : "waiting for .env.local credentials"}.
-                  Realtime mission progress channels are schema-ready.
-                </div>
               </div>
             </details>
           </div>

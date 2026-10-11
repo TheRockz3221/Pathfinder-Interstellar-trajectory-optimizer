@@ -17,11 +17,8 @@ export const defaultMission: MissionConfig = {
   maxMissionDurationYears: 90,
   optimizationMethod: "Differential Evolution",
   integrator: "RK4",
-  gravityAssists: [
-    { planetName: "Venus", flybyOrder: 1, closestApproachKm: 62_000 },
-    { planetName: "Earth", flybyOrder: 2, closestApproachKm: 24_000 },
-    { planetName: "Jupiter", flybyOrder: 3, closestApproachKm: 540_000 }
-  ],
+  gravityAssists: [{ planetName: "Jupiter", flybyOrder: 1, closestApproachKm: 540_000 }],
+  applyGravityAssists: true,
   objectiveWeights: {
     travelTime: 70,
     fuel: 15,

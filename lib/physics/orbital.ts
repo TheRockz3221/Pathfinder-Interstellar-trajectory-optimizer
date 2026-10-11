@@ -1,4 +1,5 @@
 import {
+  DAY_S,
   AU_M,
   G,
   SOLAR_LUMINOSITY_W,
@@ -35,15 +36,61 @@ export function distance(a: Vector3, b: Vector3): number {
   return magnitude(subtract(a, b));
 }
 
-export function gravitationalAcceleration(position: Vector3, bodyName: CelestialBodyName): Vector3 {
+export function bodyPositionAtTime(bodyName: CelestialBodyName, elapsedSeconds = 0, launchDate?: string): Vector3 {
   const body = celestialBodies[bodyName];
-  const r = subtract(body.positionAtEpoch, position);
+  if (body.orbitalPeriodDays <= 0) {
+    return body.positionAtEpoch;
+  }
+
+  const launchOffsetDays = launchDate ? daysSinceReferenceEpoch(launchDate) : 0;
+  const elapsedDays = elapsedSeconds / DAY_S;
+  const phase = body.initialPhaseRad + ((launchOffsetDays + elapsedDays) / body.orbitalPeriodDays) * Math.PI * 2;
+  const radiusM = body.semiMajorAxisAu * AU_M;
+  return {
+    x: Math.cos(phase) * radiusM,
+    y: Math.sin(phase) * radiusM,
+    z: 0
+  };
+}
+
+export function bodyVelocityAtTime(bodyName: CelestialBodyName, elapsedSeconds = 0, launchDate?: string): Vector3 {
+  const body = celestialBodies[bodyName];
+  if (body.orbitalPeriodDays <= 0) {
+    return zeroVector;
+  }
+
+  const launchOffsetDays = launchDate ? daysSinceReferenceEpoch(launchDate) : 0;
+  const elapsedDays = elapsedSeconds / DAY_S;
+  const phase = body.initialPhaseRad + ((launchOffsetDays + elapsedDays) / body.orbitalPeriodDays) * Math.PI * 2;
+  const radiusM = body.semiMajorAxisAu * AU_M;
+  const angularRateRadS = (Math.PI * 2) / (body.orbitalPeriodDays * DAY_S);
+  return {
+    x: -Math.sin(phase) * radiusM * angularRateRadS,
+    y: Math.cos(phase) * radiusM * angularRateRadS,
+    z: 0
+  };
+}
+
+export function gravitationalAcceleration(
+  position: Vector3,
+  bodyName: CelestialBodyName,
+  elapsedSeconds = 0,
+  launchDate?: string
+): Vector3 {
+  const body = celestialBodies[bodyName];
+  const bodyPosition = bodyPositionAtTime(bodyName, elapsedSeconds, launchDate);
+  const r = subtract(bodyPosition, position);
   const rMag = Math.max(magnitude(r), body.radiusKm * 1_000);
   return scale(normalize(r), (G * body.massKg) / (rMag * rMag));
 }
 
-export function nBodyAcceleration(position: Vector3, bodies: CelestialBodyName[]): Vector3 {
-  return bodies.reduce((acc, body) => add(acc, gravitationalAcceleration(position, body)), zeroVector);
+export function nBodyAcceleration(
+  position: Vector3,
+  bodies: CelestialBodyName[],
+  elapsedSeconds = 0,
+  launchDate?: string
+): Vector3 {
+  return bodies.reduce((acc, body) => add(acc, gravitationalAcceleration(position, body, elapsedSeconds, launchDate)), zeroVector);
 }
 
 export function escapeVelocity(bodyName: CelestialBodyName, altitudeKm = 0): number {
@@ -108,6 +155,15 @@ export function orbitalEnergy(position: Vector3, velocity: Vector3, centralBody:
   const mu = G * celestialBodies[centralBody].massKg;
   const r = Math.max(distance(position, celestialBodies[centralBody].positionAtEpoch), 1);
   return 0.5 * magnitude(velocity) ** 2 - mu / r;
+}
+
+function daysSinceReferenceEpoch(launchDate: string) {
+  const parsed = Date.parse(`${launchDate}T00:00:00Z`);
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+  const referenceEpoch = Date.UTC(2000, 0, 1);
+  return (parsed - referenceEpoch) / (DAY_S * 1_000);
 }
 
 export function estimateMissionScore(mission: MissionConfig, travelTimeYears: number, fuelRemainingKg: number, deltaVMps: number) {
