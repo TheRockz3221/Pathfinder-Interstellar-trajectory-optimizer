@@ -53,7 +53,7 @@ export async function updateSession(request: NextRequest) {
 
   try {
     await supabase.auth.getUser();
-  } catch (err) {
+  } catch {
     // If Supabase call fails, don't break the middleware — return next()
     return response();
   }

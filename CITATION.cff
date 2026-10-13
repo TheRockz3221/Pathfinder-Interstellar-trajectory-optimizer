@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as follows."
+title: "Interstellar Trajectory Optimizer"
+authors:
+  - family-names: "Are"
+    given-names: "Rohit Reddy"
+url: "https://github.com/TheRockz3221/Pathfinder-Interstellar-trajectory-optimizer"

@@ -1,50 +1,59 @@
 # Interstellar Trajectory Optimizer
 
-A production-shaped Next.js platform for designing, simulating, visualizing, optimizing, and comparing hypothetical interstellar probe missions. The app combines a NASA/JPL-style dashboard, interactive 3D solar-system visualization, TypeScript astrodynamics kernels, propulsion models, optimization heuristics, Supabase persistence, and export tooling.
+An interactive research application for configuring and comparing hypothetical spacecraft trajectories. It includes a mission builder, gravity-assist modeling, numerical trajectory simulation, visualization, educational validation panels, and session-local run comparisons.
 
-## Features
+## Live application
 
-- Mission builder for launch body, destination, launch date, propulsion, spacecraft mass, acceleration, duration, integrator, and weighted optimization objectives.
-- Physics modules for Newtonian gravity, escape velocity, rocket equation, solar radiation pressure, gravity assists, RK4, leapfrog, Verlet, and adaptive RK45-style stepping.
-- Propulsion catalog covering chemical, nuclear thermal, nuclear electric, fusion, antimatter, and solar sail concepts.
-- Interactive dashboard with mission summary, velocity/distance/fuel/delta-v charts, optimization progress, AI recommendations, comparison metrics, educational equations, and report exports.
-- 3D React Three Fiber solar-system scene with orbit trails, labeled bodies, trajectory path, time acceleration, pause, and replay controls.
-- Supabase-ready schema with normalized tables, storage buckets, auth profile sync, and RLS policies for user-owned mission data.
-- Vitest coverage for orbital mechanics, launch velocity, gravity assists, optimization, and trajectory baselines.
-- Optional Python science kernel in `science/` for notebook validation and future cloud simulation workers without adding a custom REST API.
+[Open the Interstellar Trajectory Optimizer](https://pathfinder-interstellar-trajectory-optimizer.vercel.app)
 
-## Quick Start
+## Run locally
 
-```bash
+Requirements: Node.js and npm.
+
+```powershell
 npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env.local` and fill in your Supabase project URL and anon key to enable persistence and authentication.
+Open `http://localhost:3000`. Supabase configuration is optional for local mission simulation; copy `.env.example` to `.env.local` and fill in the values to enable configured Supabase features.
 
-## Supabase Setup
+## Tests and checks
+
+```powershell
+npm test
+npm run lint
+npx tsc --noEmit
+```
+
+## Reproduce paper Table 2
+
+Run the four fixed-date chemical/fusion configurations and print their trajectory metrics:
+
+```powershell
+npm run reproduce
+```
+
+The equivalent direct command is `npx tsx scripts/reproduce-paper-results.ts`.
+
+## Cassini Horizons check
+
+Fetch the Cassini and Earth ephemeris samples from NASA/JPL Horizons and print the SOI-boundary comparison:
+
+```powershell
+node scripts/cassini-horizons-speed.mjs
+```
+
+This check requires network access.
+
+## Known limitations
+
+- Trajectories model flybys only; capture and powered-orbit insertion are not modeled.
+- The single-engine mass budget excludes engine mass.
+- Planetary positions use simplified models.
+
+## Optional Supabase setup
 
 1. Create a Supabase project.
 2. Run `supabase/schema.sql` in the SQL editor.
-3. Enable Email/Password and Google OAuth in Supabase Auth.
-4. Add storage bucket policies from the schema for reports, mission media, and avatars.
-5. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-
-## Verification
-
-```bash
-npm run lint
-npm test
-npm run build
-```
-
-
-## Architecture
-
-- `app/` contains the Next.js App Router entry, global styling, and React Query provider.
-- `components/` contains the mission console, builder, charts, 3D scene, auth, exports, and shadcn-style UI primitives.
-- `lib/physics/` contains integrators and astrodynamics calculations.
-- `lib/optimization/` and `lib/ai/` contain seeded Differential Evolution and explainable recommendation logic.
-- `lib/supabase/` contains the direct Supabase client and mission persistence functions.
-- `supabase/schema.sql` contains tables, triggers, storage buckets, and RLS policies.
-- `science/` contains optional Python validation utilities.
+3. Configure the desired authentication providers and storage policies.
+4. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`.

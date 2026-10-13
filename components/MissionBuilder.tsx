@@ -100,7 +100,7 @@ export function MissionBuilder() {
             Add
           </button>
         </div>
-        <label className="mb-3 flex items-center gap-2 text-sm text-slate-300">
+        <label className="mb-1 flex items-center gap-2 text-sm text-slate-300">
           <input
             type="checkbox"
             checked={mission.applyGravityAssists}
@@ -109,6 +109,9 @@ export function MissionBuilder() {
           />
           Apply assists
         </label>
+        <p className="mb-3 text-xs leading-5 text-slate-400">
+          Unchecked removes listed bodies from the gravity model; checked includes them.
+        </p>
         <p className="mb-2 text-xs text-slate-400">Periapsis altitude (km)</p>
         <div className="space-y-2">
           {mission.gravityAssists.map((assist, index) => (

@@ -2,7 +2,7 @@
 
 import { BookOpenCheck } from "lucide-react";
 import { escapeVelocity, gravityAssistVelocityGain, rocketEquationDeltaV } from "@/lib/physics/orbital";
-import { cassiniEarthFlybyValidation } from "@/lib/physics/cassini-validation";
+import { cassiniEarthFlybyValidation, cassiniHorizonsValidation } from "@/lib/physics/cassini-validation";
 import { DIFFERENTIAL_EVOLUTION_SETTINGS } from "@/lib/optimization/optimizer";
 import { propulsionModels } from "@/lib/constants/propulsion";
 import type { MissionConfig, TrajectoryResult } from "@/lib/types";
@@ -96,6 +96,15 @@ export function EducationalPanel({ mission, result }: { mission: MissionConfig; 
           </dl>
           <p className="mt-2 text-xs leading-5 text-slate-400">
             Δv compares the patched-conic relative-velocity change with the documented boost; it is not heliocentric scalar-speed gain.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Independent Horizons measurement (1-AU-equivalent heliocentric speed): inbound {formatNumber(cassiniHorizonsValidation.inboundOneAuEquivalentSpeedKps, 2)} km/s, outbound {formatNumber(cassiniHorizonsValidation.outboundOneAuEquivalentSpeedKps, 2)} km/s, gain {formatNumber(cassiniHorizonsValidation.oneAuEquivalentSpeedGainKps, 3)} km/s.
+          </p>
+          <p className="mt-1 text-sm leading-6 text-slate-300">
+            Horizons heliocentric velocity-vector change magnitude: {formatNumber(cassiniHorizonsValidation.heliocentricVelocityChangeMagnitudeKps, 3)} km/s.
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            The patched-conic value is an upper bound on heliocentric speed gain (the change in speed cannot exceed the change in the velocity vector).
           </p>
           <div className="mt-2 flex flex-wrap gap-3 text-xs text-cyan-soft">
             <a href={cassiniEarthFlybyValidation.sourceLinks.altitude} target="_blank" rel="noreferrer" className="underline">JPL flyby altitude press release</a>

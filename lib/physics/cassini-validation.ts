@@ -16,3 +16,12 @@ export const cassiniEarthFlybyValidation = {
     ephemeris: "https://ssd.jpl.nasa.gov/horizons/"
   }
 };
+
+export const cassiniHorizonsValidation = {
+  inboundOneAuEquivalentSpeedKps: 35.269495,
+  outboundOneAuEquivalentSpeedKps: 39.421492,
+  oneAuEquivalentSpeedGainKps: 4.151997,
+  heliocentricVelocityChangeMagnitudeKps: 5.735881,
+  inboundEarthRelativeVInfinityKps: 16.037268,
+  outboundEarthRelativeVInfinityKps: 16.038332
+};

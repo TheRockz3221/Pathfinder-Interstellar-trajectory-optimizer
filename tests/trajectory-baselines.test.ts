@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AU_M, YEAR_S, celestialBodies } from "@/lib/constants/celestial-bodies";
-import { bodyPositionAtTime, bodyVelocityAtTime, distance, magnitude, orbitalEnergy, subtract } from "@/lib/physics/orbital";
+import { bodyPositionAtTime, bodyVelocityAtTime, magnitude, orbitalEnergy, subtract } from "@/lib/physics/orbital";
 import { closestApproachToBody, closestApproachTimeYears, scanJupiterLaunchWindow } from "@/lib/physics/launch-window";
 import { runTrajectorySimulation } from "@/lib/physics/simulation";
 import { defaultMission } from "@/lib/state/mission-store";

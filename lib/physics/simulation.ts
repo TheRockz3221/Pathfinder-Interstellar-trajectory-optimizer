@@ -1,4 +1,4 @@
-import { AU_M, DAY_S, G, YEAR_S, celestialBodies } from "@/lib/constants/celestial-bodies";
+import { AU_M, DAY_S, YEAR_S, celestialBodies } from "@/lib/constants/celestial-bodies";
 import { propulsionModels } from "@/lib/constants/propulsion";
 import type { CelestialBodyName, GravityAssistEvent, GravityAssistPlan, MissionConfig, SimulationStep, TrajectoryResult, Vector3 } from "@/lib/types";
 import { leapfrogStep, rk45Step, rk4Step, type State, verletStep } from "@/lib/physics/integrators";
@@ -34,7 +34,6 @@ export function runTrajectorySimulation(
   requestedSteps = 900,
   options: SimulationOptions = {}
 ): TrajectoryResult {
-  const origin = celestialBodies[mission.launchBody];
   const destination = celestialBodies[mission.destination];
   const model = propulsionModels[mission.propulsionType];
   const maxSteps = Math.min(Math.max(requestedSteps, 120), 120_000);
@@ -135,7 +134,6 @@ export function runTrajectorySimulation(
   while (elapsedSeconds < durationSeconds && steps.length < maxTelemetrySteps) {
     const dt = adaptiveStepSeconds(state, elapsedSeconds, durationSeconds - elapsedSeconds);
     const previousPosition = state.position;
-    const previousVelocity = state.velocity;
     const stepStartSeconds = elapsedSeconds;
 
     state = nextState(mission, state, dt, elapsedSeconds, accelerationFn);
