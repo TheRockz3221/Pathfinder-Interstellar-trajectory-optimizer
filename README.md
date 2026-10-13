@@ -4,7 +4,7 @@ An interactive research application for configuring and comparing hypothetical s
 
 ## Live application
 
-[Open the Interstellar Trajectory Optimizer](https://pathfinder-interstellar-trajectory-optimizer.vercel.app)
+[Open the Interstellar Trajectory Optimizer](https://pathfinder-interstellar-trajectory.vercel.app) (Vercel authentication is currently enabled for this deployment.)
 
 ## Run locally
 
